@@ -1,4 +1,11 @@
-extern "C" int _fltused = 0x9875; // has taken from "stub.c" in the CRT sources.
+#include <Windows.h>
+
+HANDLE heapHandle;
+
+void mem_init()
+{
+    heapHandle = HeapCreate(0, 1024 * 1024 * 64, 0);
+}
 
 void mem_zero(void* pData, int size)
 {
@@ -9,4 +16,9 @@ void mem_zero(void* pData, int size)
         ++ptr;
         --size;
     }
+}
+
+void* mem_alloc(int size)
+{
+    return HeapAlloc(heapHandle, 0, size);
 }

@@ -4,9 +4,21 @@
     <ClCompile Include="main.cpp" />
     <ClCompile Include="graphics.cpp" />
     <ClCompile Include="mem.cpp" />
+    <ClCompile Include="compress.cpp" />
+    <ClCompile Include="string.cpp" />
+    <ClCompile Include="sprite.cpp" />
+    <ClCompile Include="res.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="graphics.h" />
     <ClInclude Include="mem.h" />
+    <ClInclude Include="compress.h" />
+    <ClInclude Include="string.h" />
+    <ClInclude Include="sprite.h" />
+    <ClInclude Include="res.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="2dps.hlsl" />
+    <FxCompile Include="2dvs.hlsl" />
   </ItemGroup>
 </Project>
