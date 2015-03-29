@@ -1,1 +1,1 @@
-MsgBox "8192 bytes"
+MsgBox "7168 bytes"

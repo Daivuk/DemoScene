@@ -15,26 +15,23 @@ float* pVerts;
 
 #define MAX_SPRITE_COUNT 300
 
+void mapVSBuffer()
+{
+    deviceContext->Map(vertexBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedVertexBuffer);
+    pVerts = (float*)mappedVertexBuffer.pData;
+}
+
 void spr_init()
 {
-    float* vertices = (float*)mem_alloc(MAX_SPRITE_COUNT * 4 * (2 + 2 + 4) * sizeof(float));
-    unsigned short* indices = (unsigned short*)mem_alloc(MAX_SPRITE_COUNT * 6 * sizeof(unsigned short));
-    for (unsigned int i = 0; i < MAX_SPRITE_COUNT; ++i)
+    float* vertices = (float*)mem_alloc((MAX_SPRITE_COUNT * 4 * (2 + 2 + 4) * sizeof(float)) + (MAX_SPRITE_COUNT * 6 * sizeof(unsigned short)));
+    unsigned short* indices = (unsigned short*)(vertices + MAX_SPRITE_COUNT * 4 * (2 + 2 + 4));
+    int offsets[6] = {0, 1, 2, 2, 3, 0};
+    for (auto i = 0; i < MAX_SPRITE_COUNT; ++i)
     {
-        indices[i * 6 + 0] = i * 4 + 0;
-        indices[i * 6 + 1] = i * 4 + 1;
-        indices[i * 6 + 2] = i * 4 + 2;
-        indices[i * 6 + 3] = i * 4 + 2;
-        indices[i * 6 + 4] = i * 4 + 3;
-        indices[i * 6 + 5] = i * 4 + 0;
-        vertices[i * 4 * (2 + 2 + 4) + 2] = 0;
-        vertices[i * 4 * (2 + 2 + 4) + 3] = 0;
-        vertices[i * 4 * (2 + 2 + 4) + 10] = 0;
-        vertices[i * 4 * (2 + 2 + 4) + 11] = 1;
-        vertices[i * 4 * (2 + 2 + 4) + 18] = 1;
-        vertices[i * 4 * (2 + 2 + 4) + 19] = 1;
-        vertices[i * 4 * (2 + 2 + 4) + 26] = 1;
-        vertices[i * 4 * (2 + 2 + 4) + 27] = 0;
+        for (auto j = 0; j < 6; ++j)
+        {
+            indices[i * 6 + j] = i * 4 + offsets[j];
+        }
     }
 
     // Set up the description of the static vertex buffer.
@@ -71,8 +68,7 @@ void spr_init()
 
     device->CreateBuffer(&indexBufferDesc, &indexData, &indexBuffer);
 
-    deviceContext->Map(vertexBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedVertexBuffer);
-    pVerts = (float*)mappedVertexBuffer.pData;
+    mapVSBuffer();
 }
 
 void spr_flush()
@@ -89,14 +85,13 @@ void spr_flush()
     deviceContext->IASetIndexBuffer(indexBuffer, DXGI_FORMAT_R16_UINT, 0);
     deviceContext->DrawIndexed(6 * spriteCount, 0, 0);
 
-    deviceContext->Map(vertexBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedVertexBuffer);
+    mapVSBuffer();
 
-    pVerts = (float*)mappedVertexBuffer.pData;
     spriteCount = 0;
     currentTexture = nullptr;
 }
 
-void spr_draw(ID3D11ShaderResourceView* pTexture, const float* rect)
+void spr_draw(ID3D11ShaderResourceView* pTexture, const float* rect, const float* color)
 {
     if (pTexture != currentTexture)
     {
@@ -104,33 +99,27 @@ void spr_draw(ID3D11ShaderResourceView* pTexture, const float* rect)
         currentTexture = pTexture;
     }
 
-    pVerts[0] = rect[0];
-    pVerts[1] = rect[1];
-    pVerts[4] = 1;
-    pVerts[5] = 1;
-    pVerts[6] = 1;
-    pVerts[7] = 1;
+    for (auto i = 4; i < 36; i += 8)
+    {
+        mem_cpy(pVerts + i, color, 32);
+    }
 
-    pVerts[8] = rect[0];
-    pVerts[9] = rect[1] + rect[3];
-    pVerts[12] = 1;
-    pVerts[13] = 1;
-    pVerts[14] = 1;
-    pVerts[15] = 1;
+    *pVerts = *rect;
+    *(pVerts + 1) = *(rect + 1);
 
-    pVerts[16] = rect[0] + rect[2];
-    pVerts[17] = rect[1] + rect[3];
-    pVerts[20] = 1;
-    pVerts[21] = 1;
-    pVerts[22] = 1;
-    pVerts[23] = 1;
+    *(pVerts + 8) = *rect;
+    *(pVerts + 9) = *(rect + 1) + *(rect + 3);
 
-    pVerts[24] = rect[0] + rect[2];
-    pVerts[25] = rect[1];
-    pVerts[28] = 1;
-    pVerts[29] = 1;
-    pVerts[30] = 1;
-    pVerts[31] = 1;
+    *(pVerts + 16) = *rect + *(rect + 2);
+    *(pVerts + 17) = *(rect + 1) + *(rect + 3);
+
+    *(pVerts + 24) = *rect + *(rect + 2);
+    *(pVerts + 25) = *(rect + 1);
+
+    for (auto j = 0; j < 8; ++j)
+    {
+        pVerts[2 + (j % 2) + ((j / 2) * 8)] = (float)(((j + 1) / 4) % 2);
+    }
 
     ++spriteCount;
     pVerts += 32;

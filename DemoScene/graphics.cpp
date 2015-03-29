@@ -3,6 +3,7 @@
 #include "mem.h"
 #include "compress.h"
 #include "string.h"
+#include "graphics.h"
 
 HWND windowHandle;
 
@@ -42,8 +43,40 @@ j ps_5_0(j p:V,g t:T,j c:C):A\
 r x.D(s,t)*c;\
 }";
 
-#define RESOLUTION_W 1024
-#define RESOLUTION_H 600
+#define RESOLUTION_W 1280
+#define RESOLUTION_H 720
+
+float gfxData[] 
+{
+    // viewProj2D matrix (Why that doesnt work?)
+    2.f / RESOLUTION_W, 0.f,                    0.f,               -1.f,
+    0.f,               -2.f / RESOLUTION_H,     0.f,                1.f,
+    0.f,                0.f,                   -0.000500500493f,    0.5f,
+    0.f,                0.f,                    0.f,                1.f,
+
+    // black
+    0.f, 0.f, 0.f, 1.f,
+
+    // white
+    1.f, 1.f, 1.f
+};
+
+D3D_SHADER_MACRO Shader_Macros[] = {
+    {"S", "struct"},
+    {"M", "matrix"},
+    {"g", "float2"},
+    {"j", "float4"},
+    {"P", "POSITION"},
+    {"T", "TEXCOORD"},
+    {"C", "COLOR"},
+    {"Y", "Texture2D"},
+    {"D", "Sample"},
+    {"R", "SamplerState"},
+    {"V", "SV_POSITION"},
+    {"A", "SV_TARGET"},
+    {"r", "return"},
+    {nullptr, nullptr},
+};
 
 LRESULT CALLBACK WinProc(HWND handle, UINT msg, WPARAM wparam, LPARAM lparam)
 {
@@ -80,23 +113,6 @@ void createWindow()
                             posX, posY, RESOLUTION_W, RESOLUTION_H,
                             nullptr, nullptr, nullptr, nullptr);
 }
-
-D3D_SHADER_MACRO Shader_Macros[] = {
-    {"S", "struct"},
-    {"M", "matrix"},
-    {"g", "float2"},
-    {"j", "float4"},
-    {"P", "POSITION"},
-    {"T", "TEXCOORD"},
-    {"C", "COLOR"},
-    {"Y", "Texture2D"},
-    {"D", "Sample"},
-    {"R", "SamplerState"},
-    {"V", "SV_POSITION"},
-    {"A", "SV_TARGET"},
-    {"r", "return"},
-    {nullptr, nullptr},
-};
 
 ID3DBlob* gfx_compileShader(const char* shader, const char stype)
 {
@@ -168,90 +184,74 @@ void gfx_init()
     auto vs2db = gfx_compileShader(g_vs2d, 'v');
     auto ps2db = gfx_compileShader(g_ps2d, 'p');
 
-    device->CreateVertexShader(vs2db->GetBufferPointer(), vs2db->GetBufferSize(), nullptr, &vs2d);
+    auto vs2dPtr = vs2db->GetBufferPointer();
+    auto vs2dSize = vs2db->GetBufferSize();
+
+    device->CreateVertexShader(vs2dPtr, vs2dSize, nullptr, &vs2d);
     device->CreatePixelShader(ps2db->GetBufferPointer(), ps2db->GetBufferSize(), nullptr, &ps2d);
 
     // Create input layouts
-    D3D11_INPUT_ELEMENT_DESC layout[] = {
-        {"POSITION", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0},
-        {"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0},
-        {"COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0},
-    };
-    device->CreateInputLayout(layout, 3, vs2db->GetBufferPointer(), vs2db->GetBufferSize(), &il2d);
+    D3D11_INPUT_ELEMENT_DESC layout[3];
+    mem_zero(layout, sizeof(D3D11_INPUT_ELEMENT_DESC) * 3);
+
+    layout->SemanticName = "POSITION";
+    layout->Format = DXGI_FORMAT_R32G32_FLOAT;
+    layout->InputSlotClass = D3D11_INPUT_PER_VERTEX_DATA;
+    (layout + 1)->SemanticName = "TEXCOORD";
+    (layout + 1)->Format = DXGI_FORMAT_R32G32_FLOAT;
+    (layout + 1)->AlignedByteOffset = D3D11_APPEND_ALIGNED_ELEMENT;
+    (layout + 1)->InputSlotClass = D3D11_INPUT_PER_VERTEX_DATA;
+    (layout + 2)->SemanticName = "COLOR";
+    (layout + 2)->Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
+    (layout + 2)->AlignedByteOffset = D3D11_APPEND_ALIGNED_ELEMENT;
+    (layout + 2)->InputSlotClass = D3D11_INPUT_PER_VERTEX_DATA;
+    device->CreateInputLayout(layout, 3, vs2dPtr, vs2dSize, &il2d);
 
     // Make sure to render triangles
     deviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
     // Create uniforms
     {
-        const float matrix[] {
-            2.f / RESOLUTION_W, 0.f,                    0.f,               -1.f,
-            0.f,               -2.f / RESOLUTION_H,     0.f,                1.f,
-            0.f,                0.f,                   -0.000500500493f,    0.5f,
-            0.f,                0.f,                    0.f,                1.f};
         D3D11_BUFFER_DESC cbDesc = CD3D11_BUFFER_DESC(64, D3D11_BIND_CONSTANT_BUFFER, D3D11_USAGE_DYNAMIC, D3D11_CPU_ACCESS_WRITE);
-        D3D11_SUBRESOURCE_DATA initData{matrix, 0, 0};
+        D3D11_SUBRESOURCE_DATA initData{GFX_VIEWPROJ2D, 0, 0};
         device->CreateBuffer(&cbDesc, &initData, &viewProj2dBuffer);
     }
 
     // 2D Depth state
-    D3D11_DEPTH_STENCIL_DESC depthDesc{
-        false,
-        D3D11_DEPTH_WRITE_MASK_ZERO,
-        D3D11_COMPARISON_LESS,
-        false,
-        0xFF,
-        0xFF,
-        {D3D11_STENCIL_OP_KEEP, D3D11_STENCIL_OP_INCR, D3D11_STENCIL_OP_KEEP, D3D11_COMPARISON_ALWAYS},
-        {D3D11_STENCIL_OP_KEEP, D3D11_STENCIL_OP_DECR, D3D11_STENCIL_OP_KEEP, D3D11_COMPARISON_ALWAYS}
-    };
+    D3D11_DEPTH_STENCIL_DESC depthDesc;
+    mem_zero(&depthDesc, sizeof(D3D11_DEPTH_STENCIL_DESC));
     device->CreateDepthStencilState(&depthDesc, &pDs2D);
 
     // 2D Rasterizer state
-    D3D11_RASTERIZER_DESC rasterizerDesc{
-        D3D11_FILL_SOLID,
-        D3D11_CULL_NONE,
-        false,
-        0,
-        0.f,
-        0.f,
-        false,
-        false,
-        false,
-        false
-    };
+    D3D11_RASTERIZER_DESC rasterizerDesc;
+    mem_zero(&rasterizerDesc, sizeof(D3D11_RASTERIZER_DESC));
+    rasterizerDesc.FillMode = D3D11_FILL_SOLID;
+    rasterizerDesc.CullMode = D3D11_CULL_NONE;
     device->CreateRasterizerState(&rasterizerDesc, &pSr2D);
 
     // 2D Blend state
-    D3D11_BLEND_DESC blendDesc{
-        FALSE,
-        FALSE,
-        {{
-            TRUE,
-            D3D11_BLEND_ONE,
-            D3D11_BLEND_INV_SRC_ALPHA,
-            D3D11_BLEND_OP_ADD,
-            D3D11_BLEND_ONE,
-            D3D11_BLEND_ONE,
-            D3D11_BLEND_OP_ADD,
-            D3D10_COLOR_WRITE_ENABLE_ALL
-        }, {0}, {0}, {0}, {0}, {0}, {0}, {0}}
-    };
+    D3D11_BLEND_DESC blendDesc;
+    mem_zero(&blendDesc, sizeof(D3D11_BLEND_DESC));
+    blendDesc.RenderTarget->BlendEnable = TRUE;
+    blendDesc.RenderTarget->SrcBlend = D3D11_BLEND_ONE;
+    blendDesc.RenderTarget->DestBlend = D3D11_BLEND_INV_SRC_ALPHA;
+    blendDesc.RenderTarget->BlendOp = D3D11_BLEND_OP_ADD;
+    blendDesc.RenderTarget->SrcBlendAlpha = D3D11_BLEND_ONE;
+    blendDesc.RenderTarget->DestBlendAlpha = D3D11_BLEND_ONE;
+    blendDesc.RenderTarget->BlendOpAlpha = D3D11_BLEND_OP_ADD;
+    blendDesc.RenderTarget->RenderTargetWriteMask = D3D10_COLOR_WRITE_ENABLE_ALL;
     device->CreateBlendState(&blendDesc, &pBs2D);
 
     // 2D Sampler state
-    D3D11_SAMPLER_DESC samplerDesc{
-        D3D11_FILTER_MIN_MAG_MIP_LINEAR,
-        D3D11_TEXTURE_ADDRESS_WRAP,
-        D3D11_TEXTURE_ADDRESS_WRAP,
-        D3D11_TEXTURE_ADDRESS_WRAP,
-        0.f,
-        1,
-        D3D11_COMPARISON_ALWAYS,
-        {0, 0, 0, 0},
-        0,
-        D3D11_FLOAT32_MAX
-    };
+    D3D11_SAMPLER_DESC samplerDesc;
+    mem_zero(&samplerDesc, sizeof(D3D11_SAMPLER_DESC));
+    samplerDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+    samplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
+    samplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
+    samplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
+    samplerDesc.MaxAnisotropy = 1;
+    samplerDesc.ComparisonFunc = D3D11_COMPARISON_ALWAYS;
+    samplerDesc.MaxLOD = D3D11_FLOAT32_MAX;
     device->CreateSamplerState(&samplerDesc, &pSs2D);
 }
 
@@ -280,6 +280,5 @@ void gfx_setup2d()
 
 void gfx_beginFrame()
 {
-    const float color[] = {0, 0, 0, 1};
-    deviceContext->ClearRenderTargetView(renderTargetView, color);
+    deviceContext->ClearRenderTargetView(renderTargetView, GFX_BLACK);
 }
