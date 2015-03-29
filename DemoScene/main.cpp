@@ -20,7 +20,9 @@ void draw()
     gfx_setup2d();
 
     const float rect[] {64, 64, 128, 256};
-    spr_draw(res_texTest, rect, GFX_WHITE);
+    spr_draw(res_textures[0], rect, GFX_WHITE);
+    const float rect2[] {64 + 128 + 64, 64, 256, 256};
+    spr_draw(res_textures[1], rect2, GFX_WHITE);
 
     spr_flush();
     gfx_endFrame();

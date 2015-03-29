@@ -5,7 +5,8 @@
 extern ID3D11Device* device;
 
 ID3D11ShaderResourceView* res_texWhite;
-ID3D11ShaderResourceView* res_texTest;
+ID3D11ShaderResourceView** res_textures;
+int res_textureCount;
 
 struct sImgContext
 {
@@ -235,37 +236,102 @@ void bevel(uint32_t strength, int size, int fromX, int fromY, int toX, int toY)
     }
 }
 
+#define RES_IMG 0
+#define RES_FILL 1
+#define RES_RECT 2
+#define RES_BEVEL 3
+#define RES_CIRCLE 4
+#define RES_IMG_END 5
+#define RES_LINE 6
+
+uint8_t resData[] = {
+    2, // Texture count
+
+    RES_IMG, 7, 8,
+    RES_FILL, 0xc9, 0xc5, 0xa9, 0xff,
+    RES_RECT, 0xf9, 0x95, 0x2c, 0xff, 0, 0, 128 / 4, 64 / 4,
+    RES_RECT, 0x73, 0x75, 0x68, 0xff, 0, (64 + 128) / 4, 128 / 4, (64 + 128 + 16 + 32) / 4,
+    RES_RECT, 0x33, 0x37, 0x3a, 0xff, 0, (64 + 128) / 4, 128 / 4, (64 + 128 + 16) / 4,
+    RES_RECT, 0x33, 0x37, 0x3a, 0xff, 0, (64 + 128 + 16 + 32) / 4, 128 / 4, 256 / 4,
+    RES_BEVEL, 64, 2, 0, 0, 128 / 4, 64 / 4,
+    RES_BEVEL, 64, 2, 0, (64 - 20) / 4, 20 / 4, 64 / 4,
+    RES_BEVEL, 64, 2, (128 - 20) / 4, (64 - 20) / 4, 128 / 4, 64 / 4,
+    RES_BEVEL, 128, 2, 0, 64 / 4, 64 / 4, (64 + 128) / 4,
+    RES_BEVEL, 128, 2, 64 / 4, 64 / 4, (64 + 64) / 4, (64 + 128) / 4,
+    RES_BEVEL, 128, 3, 0, (64 + 128) / 4, 128 / 4, (64 + 128 + 16) / 4,
+    RES_BEVEL, 128, 3, 0, (64 + 128 + 16) / 4, 128 / 4, (64 + 128 + 32) / 4,
+    RES_BEVEL, 128, 3, 0, (64 + 128 + 32) / 4, 128 / 4, (64 + 128 + 48) / 4,
+    RES_BEVEL, 128, 3, 0, (64 + 128 + 48) / 4, 128 / 4, (64 + 128 + 64) / 4,
+    RES_CIRCLE, 0x39, 0x35, 0x32, 0xff, 8 / 4, (64 + 8) / 4, 3,
+    RES_CIRCLE, 0x39, 0x35, 0x32, 0xff, 20 / 4, (64 + 8) / 4, 3,
+    RES_CIRCLE, 0x39, 0x35, 0x32, 0xff, 8 / 4, (64 + 128 - 8) / 4, 2,
+    RES_CIRCLE, 0x39, 0x35, 0x32, 0xff, 20 / 4, (64 + 128 - 8) / 4, 2,
+    RES_IMG_END,
+
+    RES_IMG, 8, 8,
+    RES_CIRCLE, 255, 255, 255, 255, 128 / 4, 128 / 4, 96 + 4,
+    RES_CIRCLE, 255, 0, 0, 255, 128 / 4, 128 / 4, 96,
+    RES_LINE, 255, 255, 255, 255, 64 / 4, 128 / 4, 192 / 4, 128 / 4, 16,
+    RES_IMG_END,
+};
+
 void res_load()
 {
     const uint32_t white = 0xffffffff;
     res_texWhite = textureFromData((uint8_t*)&white, 1, 1);
-    
-    //createImg(128, 256);
-    //fill(-1);
-    //drawCircle(128, 128, 96 + 4, 0xff000000);
-    //drawCircle(128, 128, 96, 0xff0000ff);
-    //drawLine(64, 128, 192, 128, -1, 16);
-    //res_texTest = textureFromData((uint8_t*)img.pData, img.w, img.h);
 
-    createImg(128, 256);
-    fill(0xffa9c5c9);
-    fillRect(0xff2c98f9, 0, 0, 128, 64);
-    fillRect(0xff687573, 0, 64 + 128 + 16, 128, 64 + 128 + 16 + 32);
-    fillRect(0xff3a3733, 0, 64 + 128, 128, 64 + 128 + 16);
-    fillRect(0xff3a3733, 0, 64 + 128 + 16 + 32, 128, 256);
-    fillRect(0xff303534, 0, 64 + 128 + 16 + 32, 128, 256);
-    bevel(64, 2, 0, 0, 128, 64);
-    bevel(64, 2, 0, 64 - 20, 21, 64);
-    bevel(64, 2, 128 - 21, 64 - 20, 128, 64);
-    bevel(128, 2, 0, 64, 64, 64 + 128);
-    bevel(128, 2, 64, 64, 64 + 64, 64 + 128);
-    bevel(128, 3, 0, 64 + 128, 128, 64 + 128 + 16);
-    bevel(128, 3, 0, 64 + 128 + 16, 128, 64 + 128 + 32);
-    bevel(128, 3, 0, 64 + 128 + 32, 128, 64 + 128 + 48);
-    bevel(128, 3, 0, 64 + 128 + 48, 128, 64 + 128 + 64);
-    drawCircle(8, 64 + 8, 3, 0xff323539);
-    drawCircle(20, 64 + 8, 3, 0xff323539);
-    drawCircle(8, 64 + 128 - 8, 2, 0xff323539);
-    drawCircle(20, 64 + 128 - 8, 2, 0xff323539);
-    res_texTest = textureFromData((uint8_t*)img.pData, img.w, img.h);
+    res_textureCount = *resData;
+    res_textures = (ID3D11ShaderResourceView**)mem_alloc(sizeof(ID3D11ShaderResourceView*) * res_textureCount);
+    int curTexture = 0;
+
+    for (int i = 1; i < sizeof(resData); ++i)
+    {
+        switch (resData[i])
+        {
+            case RES_IMG:
+                createImg(1 << resData[i + 1], 1 << resData[i + 2]);
+                i += 2;
+                break;
+            case RES_FILL:
+                fill(*(uint32_t*)(resData + i + 1));
+                i += 4;
+                break;
+            case RES_RECT:
+                fillRect(*(uint32_t*)(resData + i + 1),
+                         (int)(resData[i + 5]) * 4,
+                         (int)(resData[i + 6]) * 4,
+                         (int)(resData[i + 7]) * 4,
+                         (int)(resData[i + 8]) * 4);
+                i += 8;
+                break;
+            case RES_BEVEL:
+                bevel((int)(resData[i + 1]),
+                      (int)(resData[i + 2]),
+                      (int)(resData[i + 3]) * 4,
+                      (int)(resData[i + 4]) * 4,
+                      (int)(resData[i + 5]) * 4,
+                      (int)(resData[i + 6]) * 4);
+                i += 6;
+                break;
+            case RES_CIRCLE:
+                drawCircle((int)(resData[i + 5]) * 4, 
+                           (int)(resData[i + 6]) * 4, 
+                           resData[i + 7], 
+                           *(uint32_t*)(resData + i + 1));
+                i += 7;
+                break;
+            case RES_LINE:
+                drawLine((int)(resData[i + 5]) * 4,
+                         (int)(resData[i + 6]) * 4, 
+                         (int)(resData[i + 7]) * 4,
+                         (int)(resData[i + 8]) * 4,
+                         *(uint32_t*)(resData + i + 1),
+                         resData[i + 9]);
+                i += 9;
+                break;
+            case RES_IMG_END:
+                res_textures[curTexture++] = textureFromData((uint8_t*)img.pData, img.w, img.h);
+                break;
+        }
+    }
 }
