@@ -19,7 +19,7 @@ void draw()
     gfx_beginFrame();
     gfx_setup2d();
 
-    const float rect[] {64, 64, 256, 256};
+    const float rect[] {64, 64, 128, 256};
     spr_draw(res_texTest, rect, GFX_WHITE);
 
     spr_flush();

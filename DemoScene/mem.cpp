@@ -1,5 +1,16 @@
 #include <Windows.h>
 
+#pragma function(memset)
+void * __cdecl memset(void *pTarget, int value, size_t cbTarget)
+{
+    unsigned char *p = static_cast<unsigned char *>(pTarget);
+    while (cbTarget-- > 0)
+    {
+        *p++ = static_cast<unsigned char>(value);
+    }
+    return pTarget;
+}
+
 HANDLE heapHandle;
 
 void mem_init()
@@ -9,13 +20,14 @@ void mem_init()
 
 void mem_zero(void* pData, int size)
 {
-    unsigned char* ptr = (unsigned char*)pData;
-    while (size)
-    {
-        *ptr = 0;
-        ++ptr;
-        --size;
-    }
+    memset(pData, 0, size);
+    //unsigned char* ptr = (unsigned char*)pData;
+    //while (size)
+    //{
+    //    *ptr = 0;
+    //    ++ptr;
+    //    --size;
+    //}
 }
 
 void* mem_alloc(int size)
