@@ -97,7 +97,7 @@
       <RandomizedBaseAddress>false</RandomizedBaseAddress>
       <MergeSections>.rdata=.text</MergeSections>
       <LinkTimeCodeGeneration>Default</LinkTimeCodeGeneration>
-      <AdditionalDependencies>d3d11.lib;D3DCompiler.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>d3d11.lib;dxgi.lib;D3DCompiler.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <SectionAlignment>
       </SectionAlignment>
       <Driver>NotSet</Driver>
@@ -115,6 +115,7 @@
     </ClCompile>
     <ClCompile Include="graphics.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="mat.cpp" />
     <ClCompile Include="mem.cpp" />
     <ClCompile Include="res.cpp" />
     <ClCompile Include="sprite.cpp" />
@@ -125,6 +126,7 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
     </ClInclude>
     <ClInclude Include="graphics.h" />
+    <ClInclude Include="mat.h" />
     <ClInclude Include="mem.h" />
     <ClInclude Include="res.h" />
     <ClInclude Include="sprite.h" />

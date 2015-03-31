@@ -16,14 +16,25 @@ void update()
 
 void draw()
 {
+    // Setup frame
     gfx_beginFrame();
+
+    // Draw 3D
+    gfx_setup3d();
+    for (int i = 0; i < res_modelCount; ++i)
+    {
+        gfx_drawModel(res_models[i]);
+    }
+
+    // Draw 2D
     gfx_setup2d();
 
     const float rect[] {64, 64, 128, 256};
-    spr_draw(res_textures[0], rect, GFX_WHITE);
-    const float rect2[] {64 + 128 + 64, 64, 256, 256};
-    spr_draw(res_textures[1], rect2, GFX_WHITE);
+    spr_draw(res_textures[1].view, rect, GFX_WHITE);
+    const float rect2[] {64 + 128 + 64, 64, 128, 256};
+    spr_draw(res_textures[2].view, rect2, GFX_WHITE);
 
+    // Flush and flip
     spr_flush();
     gfx_endFrame();
 }

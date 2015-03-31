@@ -4,6 +4,7 @@
 #include "compress.h"
 #include "string.h"
 #include "graphics.h"
+#include "res.h"
 
 HWND windowHandle;
 
@@ -12,17 +13,33 @@ IDXGISwapChain*             swapChain;
 ID3D11Device*               device;
 ID3D11DeviceContext*        deviceContext;
 ID3D11RenderTargetView*     renderTargetView;
+
 ID3D11VertexShader*         vs2d;
 ID3D11PixelShader*          ps2d;
+ID3D11VertexShader*         vs3d;
+ID3D11PixelShader*          ps3d;
 ID3D11InputLayout*          il2d;
+ID3D11InputLayout*          il3d;
+
 ID3D11Buffer*               viewProj2dBuffer;
+ID3D11Buffer*               proj3dBuffer;
+ID3D11Buffer*               view3dBuffer;
+ID3D11Buffer*               world3dBuffer;
 ID3D11DepthStencilState*    pDs2D;
 ID3D11RasterizerState*      pSr2D;
 ID3D11BlendState*           pBs2D;
 ID3D11SamplerState*         pSs2D;
+ID3D11DepthStencilState*    pDs3D;
+ID3D11RasterizerState*      pSr3D;
+ID3D11BlendState*           pBs3D;
+ID3D11SamplerState*         pSs3D;
 
-const auto g_vs2d = "\
-M m;\
+static const unsigned int stride = (3 + 3 + 2) * 4;
+static const unsigned int offset = 0;
+
+const auto g_vs2d = 
+"\
+B mm:G(b0){M m;}\
 S O\
 {\
 j p:V;\
@@ -35,12 +52,40 @@ O o={mul(j(p.xy,0,1),m),t,c};\
 r o;\
 }";
 
-const auto g_ps2d = "\
-Y x;\
-R s;\
+const auto g_ps2d = 
+"\
+Y x:G(t0);\
+R s:G(s0);\
 j ps_5_0(j p:V,g t:T,j c:C):A\
 {\
 r x.D(s,t)*c;\
+}";
+
+const auto g_vs3d = 
+"\
+B mm:G(b0){M m;}\
+B vv:G(b1){M v;}\
+B ww:G(b2){M w;}\
+S O\
+{\
+j p:V;\
+h n:N;\
+g t:T;\
+};\
+O vs_5_0(h p:P,h n:N,g t:T)\
+{\
+O o={mul(mul(mul(j(p,1),w),v),m),n,t};\
+r o;\
+}";
+
+const auto g_ps3d = 
+"\
+Y x:G(t0);\
+Y m:G(t1);\
+R s:G(s0);\
+j ps_5_0(j p:V,h n:N,g t:T):A\
+{\
+r x.D(s,t);\
 }";
 
 #define RESOLUTION_W 1280
@@ -54,19 +99,26 @@ float gfxData[]
     0.f,                0.f,                   -0.000500500493f,    0.5f,
     0.f,                0.f,                    0.f,                1.f,
 
+    // Identity matrix
+         0.f, 0.f, 0.f,
+    0.f, 1.f, 0.f, 0.f,
+    0.f, 0.f, 1.f, 0.f,
+
     // black
     0.f, 0.f, 0.f, 1.f,
 
     // white
-    1.f, 1.f, 1.f
+    1.f, 1.f, 1.f,
 };
 
 D3D_SHADER_MACRO Shader_Macros[] = {
     {"S", "struct"},
     {"M", "matrix"},
     {"g", "float2"},
+    {"h", "float3"},
     {"j", "float4"},
     {"P", "POSITION"},
+    {"N", "NORMAL"},
     {"T", "TEXCOORD"},
     {"C", "COLOR"},
     {"Y", "Texture2D"},
@@ -75,6 +127,8 @@ D3D_SHADER_MACRO Shader_Macros[] = {
     {"V", "SV_POSITION"},
     {"A", "SV_TARGET"},
     {"r", "return"},
+    {"B", "cbuffer"},
+    {"G", "register"},
     {nullptr, nullptr},
 };
 
@@ -173,6 +227,9 @@ void gfx_init()
     ID3D11Texture2D* backBuffer;
     swapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), (void**)&backBuffer);
     device->CreateRenderTargetView(backBuffer, nullptr, &renderTargetView);
+#if _DEBUG
+    backBuffer->Release();
+#endif
 
     // Bind render target
     deviceContext->OMSetRenderTargets(1, &renderTargetView, nullptr);
@@ -183,29 +240,52 @@ void gfx_init()
     // We can always compress text!
     auto vs2db = gfx_compileShader(g_vs2d, 'v');
     auto ps2db = gfx_compileShader(g_ps2d, 'p');
+    auto vs3db = gfx_compileShader(g_vs3d, 'v');
+    auto ps3db = gfx_compileShader(g_ps3d, 'p');
 
     auto vs2dPtr = vs2db->GetBufferPointer();
     auto vs2dSize = vs2db->GetBufferSize();
+    auto vs3dPtr = vs3db->GetBufferPointer();
+    auto vs3dSize = vs3db->GetBufferSize();
 
     device->CreateVertexShader(vs2dPtr, vs2dSize, nullptr, &vs2d);
     device->CreatePixelShader(ps2db->GetBufferPointer(), ps2db->GetBufferSize(), nullptr, &ps2d);
+    device->CreateVertexShader(vs3dPtr, vs3dSize, nullptr, &vs3d);
+    device->CreatePixelShader(ps3db->GetBufferPointer(), ps3db->GetBufferSize(), nullptr, &ps3d);
 
     // Create input layouts
-    D3D11_INPUT_ELEMENT_DESC layout[3];
-    mem_zero(layout, sizeof(D3D11_INPUT_ELEMENT_DESC) * 3);
-
-    layout->SemanticName = "POSITION";
-    layout->Format = DXGI_FORMAT_R32G32_FLOAT;
-    layout->InputSlotClass = D3D11_INPUT_PER_VERTEX_DATA;
-    (layout + 1)->SemanticName = "TEXCOORD";
-    (layout + 1)->Format = DXGI_FORMAT_R32G32_FLOAT;
-    (layout + 1)->AlignedByteOffset = D3D11_APPEND_ALIGNED_ELEMENT;
-    (layout + 1)->InputSlotClass = D3D11_INPUT_PER_VERTEX_DATA;
-    (layout + 2)->SemanticName = "COLOR";
-    (layout + 2)->Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
-    (layout + 2)->AlignedByteOffset = D3D11_APPEND_ALIGNED_ELEMENT;
-    (layout + 2)->InputSlotClass = D3D11_INPUT_PER_VERTEX_DATA;
-    device->CreateInputLayout(layout, 3, vs2dPtr, vs2dSize, &il2d);
+    {
+        D3D11_INPUT_ELEMENT_DESC layout[3];
+        mem_zero(layout, sizeof(D3D11_INPUT_ELEMENT_DESC) * 3);
+        layout->SemanticName = "POSITION";
+        layout->Format = DXGI_FORMAT_R32G32_FLOAT;
+        layout->InputSlotClass = D3D11_INPUT_PER_VERTEX_DATA;
+        (layout + 1)->SemanticName = "TEXCOORD";
+        (layout + 1)->Format = DXGI_FORMAT_R32G32_FLOAT;
+        (layout + 1)->AlignedByteOffset = D3D11_APPEND_ALIGNED_ELEMENT;
+        (layout + 1)->InputSlotClass = D3D11_INPUT_PER_VERTEX_DATA;
+        (layout + 2)->SemanticName = "COLOR";
+        (layout + 2)->Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
+        (layout + 2)->AlignedByteOffset = D3D11_APPEND_ALIGNED_ELEMENT;
+        (layout + 2)->InputSlotClass = D3D11_INPUT_PER_VERTEX_DATA;
+        device->CreateInputLayout(layout, 3, vs2dPtr, vs2dSize, &il2d);
+    }
+    {
+        D3D11_INPUT_ELEMENT_DESC layout[3];
+        mem_zero(layout, sizeof(D3D11_INPUT_ELEMENT_DESC) * 3);
+        layout->SemanticName = "POSITION";
+        layout->Format = DXGI_FORMAT_R32G32B32_FLOAT;
+        layout->InputSlotClass = D3D11_INPUT_PER_VERTEX_DATA;
+        (layout + 1)->SemanticName = "NORMAL";
+        (layout + 1)->Format = DXGI_FORMAT_R32G32B32_FLOAT;
+        (layout + 1)->AlignedByteOffset = D3D11_APPEND_ALIGNED_ELEMENT;
+        (layout + 1)->InputSlotClass = D3D11_INPUT_PER_VERTEX_DATA;
+        (layout + 2)->SemanticName = "TEXCOORD";
+        (layout + 2)->Format = DXGI_FORMAT_R32G32_FLOAT;
+        (layout + 2)->AlignedByteOffset = D3D11_APPEND_ALIGNED_ELEMENT;
+        (layout + 2)->InputSlotClass = D3D11_INPUT_PER_VERTEX_DATA;
+        device->CreateInputLayout(layout, 3, vs3dPtr, vs3dSize, &il3d);
+    }
 
     // Make sure to render triangles
     deviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -216,43 +296,130 @@ void gfx_init()
         D3D11_SUBRESOURCE_DATA initData{GFX_VIEWPROJ2D, 0, 0};
         device->CreateBuffer(&cbDesc, &initData, &viewProj2dBuffer);
     }
+    {
+        D3D11_BUFFER_DESC cbDesc = CD3D11_BUFFER_DESC(64, D3D11_BIND_CONSTANT_BUFFER, D3D11_USAGE_DYNAMIC, D3D11_CPU_ACCESS_WRITE);
+        D3D11_SUBRESOURCE_DATA initData{GFX_PROJ3D, 0, 0};
+        device->CreateBuffer(&cbDesc, &initData, &proj3dBuffer);
+    }
+    {
+        D3D11_BUFFER_DESC cbDesc = CD3D11_BUFFER_DESC(64, D3D11_BIND_CONSTANT_BUFFER, D3D11_USAGE_DYNAMIC, D3D11_CPU_ACCESS_WRITE);
+        D3D11_SUBRESOURCE_DATA initData{GFX_IDENTITY, 0, 0};
+        device->CreateBuffer(&cbDesc, &initData, &view3dBuffer);
+        device->CreateBuffer(&cbDesc, &initData, &world3dBuffer);
+    }
 
     // 2D Depth state
-    D3D11_DEPTH_STENCIL_DESC depthDesc;
-    mem_zero(&depthDesc, sizeof(D3D11_DEPTH_STENCIL_DESC));
-    device->CreateDepthStencilState(&depthDesc, &pDs2D);
+    {
+        D3D11_DEPTH_STENCIL_DESC depthDesc;
+        mem_zero(&depthDesc, sizeof(D3D11_DEPTH_STENCIL_DESC));
+        device->CreateDepthStencilState(&depthDesc, &pDs2D);
+    }
 
     // 2D Rasterizer state
-    D3D11_RASTERIZER_DESC rasterizerDesc;
-    mem_zero(&rasterizerDesc, sizeof(D3D11_RASTERIZER_DESC));
-    rasterizerDesc.FillMode = D3D11_FILL_SOLID;
-    rasterizerDesc.CullMode = D3D11_CULL_NONE;
-    device->CreateRasterizerState(&rasterizerDesc, &pSr2D);
+    {
+        D3D11_RASTERIZER_DESC rasterizerDesc;
+        mem_zero(&rasterizerDesc, sizeof(D3D11_RASTERIZER_DESC));
+        rasterizerDesc.FillMode = D3D11_FILL_SOLID;
+        rasterizerDesc.CullMode = D3D11_CULL_NONE;
+        device->CreateRasterizerState(&rasterizerDesc, &pSr2D);
+    }
 
     // 2D Blend state
-    D3D11_BLEND_DESC blendDesc;
-    mem_zero(&blendDesc, sizeof(D3D11_BLEND_DESC));
-    blendDesc.RenderTarget->BlendEnable = TRUE;
-    blendDesc.RenderTarget->SrcBlend = D3D11_BLEND_ONE;
-    blendDesc.RenderTarget->DestBlend = D3D11_BLEND_INV_SRC_ALPHA;
-    blendDesc.RenderTarget->BlendOp = D3D11_BLEND_OP_ADD;
-    blendDesc.RenderTarget->SrcBlendAlpha = D3D11_BLEND_ONE;
-    blendDesc.RenderTarget->DestBlendAlpha = D3D11_BLEND_ONE;
-    blendDesc.RenderTarget->BlendOpAlpha = D3D11_BLEND_OP_ADD;
-    blendDesc.RenderTarget->RenderTargetWriteMask = D3D10_COLOR_WRITE_ENABLE_ALL;
-    device->CreateBlendState(&blendDesc, &pBs2D);
+    {
+        D3D11_BLEND_DESC blendDesc;
+        mem_zero(&blendDesc, sizeof(D3D11_BLEND_DESC));
+        blendDesc.RenderTarget->BlendEnable = TRUE;
+        blendDesc.RenderTarget->SrcBlend = D3D11_BLEND_ONE;
+        blendDesc.RenderTarget->DestBlend = D3D11_BLEND_INV_SRC_ALPHA;
+        blendDesc.RenderTarget->BlendOp = D3D11_BLEND_OP_ADD;
+        blendDesc.RenderTarget->SrcBlendAlpha = D3D11_BLEND_ONE;
+        blendDesc.RenderTarget->DestBlendAlpha = D3D11_BLEND_ONE;
+        blendDesc.RenderTarget->BlendOpAlpha = D3D11_BLEND_OP_ADD;
+        blendDesc.RenderTarget->RenderTargetWriteMask = D3D10_COLOR_WRITE_ENABLE_ALL;
+        device->CreateBlendState(&blendDesc, &pBs2D);
+    }
 
     // 2D Sampler state
-    D3D11_SAMPLER_DESC samplerDesc;
-    mem_zero(&samplerDesc, sizeof(D3D11_SAMPLER_DESC));
-    samplerDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
-    samplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
-    samplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
-    samplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
-    samplerDesc.MaxAnisotropy = 1;
-    samplerDesc.ComparisonFunc = D3D11_COMPARISON_ALWAYS;
-    samplerDesc.MaxLOD = D3D11_FLOAT32_MAX;
-    device->CreateSamplerState(&samplerDesc, &pSs2D);
+    {
+        D3D11_SAMPLER_DESC samplerDesc;
+        mem_zero(&samplerDesc, sizeof(D3D11_SAMPLER_DESC));
+        samplerDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+        samplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
+        samplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
+        samplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
+        samplerDesc.MaxAnisotropy = 1;
+        samplerDesc.ComparisonFunc = D3D11_COMPARISON_ALWAYS;
+        samplerDesc.MaxLOD = D3D11_FLOAT32_MAX;
+        device->CreateSamplerState(&samplerDesc, &pSs2D);
+    }
+
+    // 3D Depth state
+    {
+        D3D11_DEPTH_STENCIL_DESC depthDesc;
+        mem_zero(&depthDesc, sizeof(D3D11_DEPTH_STENCIL_DESC));
+        //true,
+        //    D3D11_DEPTH_WRITE_MASK_ALL,
+        //    D3D11_COMPARISON_LESS,
+        //    false,
+        //    D3D11_DEFAULT_STENCIL_READ_MASK,
+        //    D3D11_DEFAULT_STENCIL_WRITE_MASK,
+        //    {D3D11_STENCIL_OP_KEEP, D3D11_STENCIL_OP_KEEP, D3D11_STENCIL_OP_KEEP, D3D11_COMPARISON_ALWAYS},
+        //    {D3D11_STENCIL_OP_KEEP, D3D11_STENCIL_OP_KEEP, D3D11_STENCIL_OP_KEEP, D3D11_COMPARISON_ALWAYS}
+        device->CreateDepthStencilState(&depthDesc, &pDs3D);
+    }
+
+    // 3D Rasterizer state
+    {
+        D3D11_RASTERIZER_DESC rasterizerDesc;
+        mem_zero(&rasterizerDesc, sizeof(D3D11_RASTERIZER_DESC));
+        rasterizerDesc.FillMode = D3D11_FILL_SOLID;
+        rasterizerDesc.CullMode = D3D11_CULL_NONE;
+
+        //D3D11_FILL_MODE FillMode;
+        //D3D11_CULL_MODE CullMode;
+        //BOOL FrontCounterClockwise;
+        //INT DepthBias;
+        //FLOAT DepthBiasClamp;
+        //FLOAT SlopeScaledDepthBias;
+        //BOOL DepthClipEnable;
+        //BOOL ScissorEnable;
+        //BOOL MultisampleEnable;
+        //BOOL AntialiasedLineEnable;
+
+        //D3D11_FILL_SOLID,
+        //    D3D11_CULL_BACK,
+        //    true,
+        //    0,
+        //    0.f,
+        //    0.f,
+        //    true,
+        //    false,
+        //    true,
+        //    false
+        device->CreateRasterizerState(&rasterizerDesc, &pSr3D);
+    }
+
+    // 3D Blend state
+    {
+        D3D11_BLEND_DESC blendDesc;
+        mem_zero(&blendDesc, sizeof(D3D11_BLEND_DESC));
+        blendDesc.RenderTarget->RenderTargetWriteMask = D3D10_COLOR_WRITE_ENABLE_ALL;
+        device->CreateBlendState(&blendDesc, &pBs3D);
+    }
+
+    // 3D Sampler state
+    {
+        D3D11_SAMPLER_DESC samplerDesc;
+        mem_zero(&samplerDesc, sizeof(D3D11_SAMPLER_DESC));
+        samplerDesc.Filter = D3D11_FILTER_ANISOTROPIC;
+        samplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
+        samplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
+        samplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
+        samplerDesc.MaxAnisotropy = 4;
+        samplerDesc.ComparisonFunc = D3D11_COMPARISON_ALWAYS;
+        samplerDesc.MaxLOD = D3D11_FLOAT32_MAX;
+        device->CreateSamplerState(&samplerDesc, &pSs3D);
+    }
 }
 
 void gfx_endFrame()
@@ -278,7 +445,45 @@ void gfx_setup2d()
     deviceContext->VSSetConstantBuffers(0, 1, &viewProj2dBuffer);
 }
 
+void gfx_setup3d()
+{
+    // Set render states
+    deviceContext->OMSetDepthStencilState(pDs3D, 1);
+    deviceContext->RSSetState(pSr3D);
+    deviceContext->OMSetBlendState(pBs3D, NULL, 0xffffffff);
+    deviceContext->PSSetSamplers(0, 1, &pSs3D);
+
+    // Bind the shaders
+    deviceContext->IASetInputLayout(il3d);
+    deviceContext->VSSetShader(vs3d, nullptr, 0);
+    deviceContext->PSSetShader(ps3d, nullptr, 0);
+
+    // Bind the matrices
+    deviceContext->VSSetConstantBuffers(0, 1, &proj3dBuffer);
+    deviceContext->VSSetConstantBuffers(1, 1, &view3dBuffer);
+    deviceContext->VSSetConstantBuffers(2, 1, &world3dBuffer);
+}
+
 void gfx_beginFrame()
 {
     deviceContext->ClearRenderTargetView(renderTargetView, GFX_BLACK);
+}
+
+void gfx_drawModel(sModel& model)
+{
+    // Set world matrix
+    D3D11_MAPPED_SUBRESOURCE map;
+    deviceContext->Map(world3dBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &map);
+    mem_cpy(map.pData, model.transform, 64);
+    deviceContext->Unmap(world3dBuffer, 0);
+
+    for (int i = 0; i < model.count; ++i)
+    {
+        sMesh* pMesh = model.meshes[i];
+
+        deviceContext->PSSetShaderResources(0, 1, &pMesh->texture->view);
+        deviceContext->IASetVertexBuffers(0, 1, &pMesh->vertexBuffer, &stride, &offset);
+        deviceContext->IASetIndexBuffer(pMesh->indexBuffer, DXGI_FORMAT_R16_UINT, 0);
+        deviceContext->DrawIndexed(pMesh->indexCount, 0, 0);
+    }
 }
