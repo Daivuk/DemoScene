@@ -20,6 +20,8 @@ int res_meshCount;
 int res_modelCount;
 int res_cameraCount;
 
+sCamera* res_currentCamera;
+
 float* transforms;
 
 auto vertSize = (3 + 3 + 2);
@@ -71,9 +73,10 @@ void textureFromData(sTexture& out, const uint8_t* pData, UINT w, UINT h)
     out.h = (int)h;
 }
 
-void meshFromData(sMesh& out, sMeshQuad* pQuad, sTexture* pTexture)
+void meshFromData(sMesh& out, sMeshQuad* pQuad, sTexture* pTexture, sTexture* pNormalMap)
 {
     out.texture = pTexture;
+    out.normalMap = pNormalMap;
 
     // Count required data first
     int vertCount = 0;
@@ -241,6 +244,8 @@ void setupCamera(sCamera& out, float *pos, float* lookat, float* transform, floa
     out.lookAt[0] = tx;
     out.lookAt[1] = ty;
     out.lookAt[2] = tz;
+
+    res_currentCamera = &out;
 }
 
 uint32_t blendColors(uint32_t src, uint32_t dst)
@@ -497,7 +502,7 @@ enum eRES_CMD : uint8_t
 uint8_t resData[] = {
     3, // Texture count
     1, // Mesh count
-    1, // Model count
+    4, // Model count
     1, // Camera count
 
     RES_IMG, 1, 1,
@@ -510,6 +515,7 @@ uint8_t resData[] = {
     RES_RECT, 0x73, 0x75, 0x68, 0xff, 0, (64 + 128) / 4, 128 / 4, (64 + 128 + 16 + 32) / 4,
     RES_RECT, 0x33, 0x37, 0x3a, 0xff, 0, (64 + 128) / 4, 128 / 4, (64 + 128 + 16) / 4,
     RES_RECT, 0x33, 0x37, 0x3a, 0xff, 0, (64 + 128 + 16 + 32) / 4, 128 / 4, 256 / 4,
+    RES_RECT, 0, 0, 0, 0x55, 0, (64 + 128) / 4, 128 / 4, 256 / 4,
     RES_BEVEL, 64, 2, 0, 0, 128 / 4, 64 / 4,
     RES_BEVEL, 64, 2, 0, (64 - 20) / 4, 20 / 4, 64 / 4,
     RES_BEVEL, 64, 2, (128 - 20) / 4, (64 - 20) / 4, 128 / 4, 64 / 4,
@@ -527,19 +533,20 @@ uint8_t resData[] = {
 
     RES_IMG, 7, 8,
     RES_FILL, 255, 255, 255, 255,
-    RES_BEVEL, 128, 4, 0, 0, 128 / 4, 64 / 4,
-    RES_BEVEL, 64, 4, 0, (64 - 20) / 4, 20 / 4, 64 / 4,
-    RES_BEVEL, 64, 4, (128 - 20) / 4, (64 - 20) / 4, 128 / 4, 64 / 4,
-    RES_BEVEL, 128, 4, 0, 64 / 4, 64 / 4, (64 + 128) / 4,
-    RES_BEVEL, 128, 4, 64 / 4, 64 / 4, (64 + 64) / 4, (64 + 128) / 4,
-    RES_BEVEL, 128, 8, 0, (64 + 128) / 4, 128 / 4, (64 + 128 + 16) / 4,
-    RES_BEVEL, 128, 8, 0, (64 + 128 + 16) / 4, 128 / 4, (64 + 128 + 32) / 4,
-    RES_BEVEL, 128, 8, 0, (64 + 128 + 32) / 4, 128 / 4, (64 + 128 + 48) / 4,
-    RES_BEVEL, 128, 8, 0, (64 + 128 + 48) / 4, 128 / 4, (64 + 128 + 64) / 4,
-    RES_BEVEL_CIRCLE, 96, 96, 96, 0xff, 8 / 4, (64 + 8) / 4, 4, 2,
-    RES_BEVEL_CIRCLE, 96, 96, 96, 0xff, 20 / 4, (64 + 8) / 4, 4, 2,
-    RES_BEVEL_CIRCLE, 96, 96, 96, 0xff, 8 / 4, (64 + 128 - 8) / 4, 2, 1,
-    RES_BEVEL_CIRCLE, 96, 96, 96, 0xff, 20 / 4, (64 + 128 - 8) / 4, 2, 1,
+    RES_RECT, 0, 0, 0, 0x55, 0, (64 + 128) / 4, 128 / 4, 256 / 4,
+    RES_BEVEL, 128, 2, 0, 0, 128 / 4, 64 / 4,
+    RES_BEVEL, 64, 2, 0, (64 - 20) / 4, 20 / 4, 64 / 4,
+    RES_BEVEL, 64, 2, (128 - 20) / 4, (64 - 20) / 4, 128 / 4, 64 / 4,
+    RES_BEVEL, 128, 2, 0, 64 / 4, 64 / 4, (64 + 128) / 4,
+    RES_BEVEL, 128, 2, 64 / 4, 64 / 4, (64 + 64) / 4, (64 + 128) / 4,
+    RES_BEVEL, 255, 8, 0, (64 + 128) / 4, 128 / 4, (64 + 128 + 16) / 4,
+    RES_BEVEL, 255, 8, 0, (64 + 128 + 16) / 4, 128 / 4, (64 + 128 + 32) / 4,
+    RES_BEVEL, 255, 8, 0, (64 + 128 + 32) / 4, 128 / 4, (64 + 128 + 48) / 4,
+    RES_BEVEL, 255, 8, 0, (64 + 128 + 48) / 4, 128 / 4, (64 + 128 + 64) / 4,
+    RES_BEVEL_CIRCLE, 0, 0, 0, 0xff, 8 / 4, (64 + 8) / 4, 3, 2,
+    RES_BEVEL_CIRCLE, 0, 0, 0, 0xff, 20 / 4, (64 + 8) / 4, 3, 2,
+    RES_BEVEL_CIRCLE, 0, 0, 0, 0xff, 8 / 4, (64 + 128 - 8) / 4, 2, 1,
+    RES_BEVEL_CIRCLE, 0, 0, 0, 0xff, 20 / 4, (64 + 128 - 8) / 4, 2, 1,
     RES_NORMAL_MAP,
     RES_IMG_END,
 
@@ -551,13 +558,16 @@ uint8_t resData[] = {
 
     RES_MESH,
     RES_QUAD, 0, 0, 0, 0, 0, 0, 7, 8, 0, 0, 
-    RES_MESH_END, 1,
+    RES_MESH_END, 1, 2,
 
     // Map layout
-    RES_MODEL, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0,
+    RES_MODEL, 0, 0, 64, 0, 0, 0, 0, 0, 1, 0,
+    RES_MODEL, 16, 0, 64, 0, 0, 0, 0, 0, 1, 0,
+    RES_MODEL, 32, 0, 64, 0, 0, 0, 0, 0, 1, 0,
+    RES_MODEL, 48, 0, 64, 0, 0, 0, 0, 0, 1, 0,
 
     // Cameras
-    RES_CAMERA, 0, 0, 32, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    RES_CAMERA, 32, 0, 0, 0, 32, 0, 0, 0, 64, 0, 16, 0,
 };
 
 void res_load()
@@ -657,7 +667,8 @@ void res_load()
                 i += 10;
                 break;
             case RES_MESH_END:
-                meshFromData(res_meshes[curMesh++], mesh.pQuads, &res_textures[resData[++i]]);
+                meshFromData(res_meshes[curMesh++], mesh.pQuads, &res_textures[resData[i + 1]], &res_textures[resData[i + 2]]);
+                i += 2;
                 break;
 
             case RES_MODEL:

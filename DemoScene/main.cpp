@@ -20,7 +20,7 @@ void draw()
     gfx_beginFrame();
 
     // Draw 3D
-    gfx_setup3d();
+    gfx_setup3d(res_currentCamera);
     for (int i = 0; i < res_modelCount; ++i)
     {
         gfx_drawModel(res_models[i]);

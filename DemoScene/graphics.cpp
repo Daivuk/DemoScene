@@ -5,6 +5,7 @@
 #include "string.h"
 #include "graphics.h"
 #include "res.h"
+#include "mat.h"
 
 HWND windowHandle;
 
@@ -61,7 +62,7 @@ j ps_5_0(j p:V,g t:T,j c:C):A\
 r x.D(s,t)*c;\
 }";
 
-const auto g_vs3d = 
+const auto g_vs3d =
 "\
 B mm:G(b0){M m;}\
 B vv:G(b1){M v;}\
@@ -71,21 +72,34 @@ S O\
 j p:V;\
 h n:N;\
 g t:T;\
+h wp:T1;\
 };\
 O vs_5_0(h p:P,h n:N,g t:T)\
 {\
-O o={mul(mul(mul(j(p,1),w),v),m),n,t};\
+O o;\
+o.wp=mul(j(p,1),w).xyz;\
+o.p=mul(mul(j(o.wp,1),v),m);\
+o.n=mul(j(n,0),w).xyz;\
+o.t=t;\
 r o;\
 }";
 
-const auto g_ps3d = 
+const auto g_ps3d =
 "\
-Y x:G(t0);\
-Y m:G(t1);\
+Y x0:G(t0);\
+Y x1:G(t1);\
 R s:G(s0);\
-j ps_5_0(j p:V,h n:N,g t:T):A\
+j ps_5_0(j p:V,h n:N,g t:T,h wp:T1):A\
 {\
-r x.D(s,t);\
+j di=x0.D(s,t);\
+h no=x1.D(s,t).xyz;\
+h norm=no*2-1;\
+norm=h(norm.x,-norm.z,-norm.y);\
+norm=normalize(norm);\
+f dt=distance(h(-32,384,256),wp);\
+dt=saturate(1-dt/1024);\
+dt*=saturate(dot(normalize(h(-32,384,256)-wp),norm));\
+r di*dt*1.5;\
 }";
 
 #define RESOLUTION_W 1280
@@ -93,7 +107,7 @@ r x.D(s,t);\
 
 float gfxData[] 
 {
-    // viewProj2D matrix (Why that doesnt work?)
+    // viewProj2D matrix
     2.f / RESOLUTION_W, 0.f,                    0.f,               -1.f,
     0.f,               -2.f / RESOLUTION_H,     0.f,                1.f,
     0.f,                0.f,                   -0.000500500493f,    0.5f,
@@ -109,17 +123,29 @@ float gfxData[]
 
     // white
     1.f, 1.f, 1.f,
+
+    // Porjection matrix
+    1.18930638f, 0.f, 0.f, 0.f,
+    0.f, 2.11432242f, 0.f, 0.f,
+    0.f, 0.f, -1.00001001f, -0.100001000f,
+    0.f, 0.f, -1.f, 0.f,
 };
+//+ [0]	{m128_f32 = 0x005ec7d0 {1.18930638, 0.000000000, 0.000000000, 0.000000000} m128_u64 = 0x005ec7d0 {1066941233, ...} ...}	__m128
+//+ [1]	{m128_f32 = 0x005ec7e0 {0.000000000, 2.11432242, 0.000000000, 0.000000000} m128_u64 = 0x005ec7e0 {4613745468130721792, ...} ...}	__m128
+//+ [2]	{m128_f32 = 0x005ec7f0 {0.000000000, 0.000000000, -1.00001001, -1.00000000} m128_u64 = 0x005ec7f0 {0, 13799029261476036692} ...}	__m128
+//+ [3]	{m128_f32 = 0x005ec800 {0.000000000, 0.000000000, -0.100001000, 0.000000000} m128_u64 = 0x005ec800 {0, 3184315731} ...}	__m128
 
 D3D_SHADER_MACRO Shader_Macros[] = {
     {"S", "struct"},
     {"M", "matrix"},
+    {"f", "float"},
     {"g", "float2"},
     {"h", "float3"},
     {"j", "float4"},
     {"P", "POSITION"},
     {"N", "NORMAL"},
     {"T", "TEXCOORD"},
+    {"T1", "TEXCOORD1"},
     {"C", "COLOR"},
     {"Y", "Texture2D"},
     {"D", "Sample"},
@@ -445,7 +471,7 @@ void gfx_setup2d()
     deviceContext->VSSetConstantBuffers(0, 1, &viewProj2dBuffer);
 }
 
-void gfx_setup3d()
+void gfx_setup3d(struct sCamera* pActiveCamera)
 {
     // Set render states
     deviceContext->OMSetDepthStencilState(pDs3D, 1);
@@ -462,6 +488,15 @@ void gfx_setup3d()
     deviceContext->VSSetConstantBuffers(0, 1, &proj3dBuffer);
     deviceContext->VSSetConstantBuffers(1, 1, &view3dBuffer);
     deviceContext->VSSetConstantBuffers(2, 1, &world3dBuffer);
+
+    // Update view matrix with current camera
+    float dir[3];
+    mat_v3sub(pActiveCamera->lookAt, pActiveCamera->pos, dir);
+    mat_lookAt(pActiveCamera->transform, pActiveCamera->pos, dir, GFX_Z);
+    D3D11_MAPPED_SUBRESOURCE map;
+    deviceContext->Map(view3dBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &map);
+    mem_cpy(map.pData, pActiveCamera->transform, 64);
+    deviceContext->Unmap(view3dBuffer, 0);
 }
 
 void gfx_beginFrame()
@@ -482,6 +517,7 @@ void gfx_drawModel(sModel& model)
         sMesh* pMesh = model.meshes[i];
 
         deviceContext->PSSetShaderResources(0, 1, &pMesh->texture->view);
+        deviceContext->PSSetShaderResources(1, 1, &pMesh->normalMap->view);
         deviceContext->IASetVertexBuffers(0, 1, &pMesh->vertexBuffer, &stride, &offset);
         deviceContext->IASetIndexBuffer(pMesh->indexBuffer, DXGI_FORMAT_R16_UINT, 0);
         deviceContext->DrawIndexed(pMesh->indexCount, 0, 0);
