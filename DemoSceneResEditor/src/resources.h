@@ -43,21 +43,21 @@ struct sTextureCmdFILL : public sTextureCmd
 struct sTextureCmdRECT : public sTextureCmd
 {
     Color color = Color::White;
-    int x = 0, y = 0, w = 16, h = 16;
+    int x1 = 0, y1 = 0, x2 = 32, y2 = 32;
 };
 
 struct sTextureCmdBEVEL : public sTextureCmd
 {
     Color color = Color::Black;
-    int x = 0, y = 0, w = 16, h = 16;
-    int bevel;
+    int x1 = 0, y1 = 0, x2 = 32, y2 = 32;
+    int bevel = 5;
 };
 
 struct sTextureCmdCIRCLE : public sTextureCmd
 {
     Color color = Color::White;
     int x = 0, y = 0;
-    int radius;
+    int radius = 20;
 };
 
 struct sTextureCmdBEVEL_CIRCLE : public sTextureCmd
@@ -71,15 +71,15 @@ struct sTextureCmdBEVEL_CIRCLE : public sTextureCmd
 struct sTextureCmdLINE : public sTextureCmd
 {
     Color color = Color::White;
-    int x1 = 0, y1 = 8, x2 = 16, y2 = 8;
+    int x1 = 8, y1 = 8, x2 = 48, y2 = 8;
     int size = 3;
 };
 
 struct sTextureCmdGRADIENT : public sTextureCmd
 {
     Color color1 = Color::White, color2 = Color::Black;
-    int x = 0, y = 0, w = 16, h = 16;
-    bool bVertical;
+    int x1 = 0, y1 = 0, x2 = 32, y2 = 32;
+    bool bVertical = false;
 };
 
 struct sTextureCmdNORMAL_MAP : public sTextureCmd

@@ -38,12 +38,16 @@ public:
     void showColorPicker(const Color& color, function<void(const Color&)> callback);
     void updateColorPickerValues();
 
+    int pickOnTexture(const Vector2& pos, int* out_downState);
+    void updateTextureEdit(const Vector2& diff);
+
 public:
     UIContext uiContext;
     UIControl uiScreen;
 
     UIControl* uiTextures;
     UIControl* uiTexture;
+    UIControl* uiPnlTexture;
     UIControl* uiInspectorTextures;
     UIControl* uiInspectorTexture;
     UIControl* uiColorPicker;
@@ -55,6 +59,12 @@ public:
     UITextBox* uiTextureW;
     UITextBox* uiTextureH;
     UIControl* pnlTexture;
+
+    int dragId = -1;
+    int downState[4];
+    Vector2 onDownMousePos;
+    Vector2 lastDragDiff;
+    bool bShowGrid = true;
 
     function<void(const Color&)> colorPickerCallback;
 };

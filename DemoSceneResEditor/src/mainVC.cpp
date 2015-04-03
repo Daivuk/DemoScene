@@ -68,6 +68,7 @@ MainVC::MainVC()
         }
     });
 
+    uiPnlTexture = uiScreen.getChild("pnlTexture");
     uiContext.addStyle<UIPanel>("pnlTexture", [this](const onut::UIPanel* pCheckBox, const onut::sUIRect& rect)
     {
         auto state = pCheckBox->getState(uiContext);
@@ -126,12 +127,14 @@ MainVC::MainVC()
         auto d = uiTextureW->getInt();
         pnlTexture->rect.size.x = (float)d;
         workingTexture->w = d;
+        workingTexture->bake();
     };
     uiTextureH->onTextChanged = [this](UITextBox* c, const UITextBoxEvent& e)
     {
         auto d = uiTextureH->getInt();
         pnlTexture->rect.size.y = (float)d;
         workingTexture->h = d;
+        workingTexture->bake();
     };
 
     // Events
@@ -229,6 +232,34 @@ MainVC::MainVC()
             }
         }
     };
+    uiTexture->onMouseDown = [this](UIControl* c, const UIMouseEvent& e)
+    {
+        onDownMousePos = {e.mousePos.x, e.mousePos.y};
+        auto offset = uiPnlTexture->getWorldRect(uiContext).position;
+        onDownMousePos.x -= offset.x;
+        onDownMousePos.y -= offset.y;
+        lastDragDiff = {0, 0};
+        dragId = pickOnTexture(onDownMousePos, downState);
+    };
+    uiTexture->onMouseMove = [this](UIControl* c, const UIMouseEvent& e)
+    {
+        if (c != uiContext.getDownControl()) return;
+        if (dragId == -1) return;
+        auto offset = uiPnlTexture->getWorldRect(uiContext).position;
+        auto mousePos = e.mousePos;
+        mousePos.x -= offset.x;
+        mousePos.y -= offset.y;
+        Vector2 mouseDiff{mousePos.x - onDownMousePos.x, mousePos.y - onDownMousePos.y};
+        if (mouseDiff != lastDragDiff)
+        {
+            updateTextureEdit(mouseDiff);
+            lastDragDiff = mouseDiff;
+        }
+    };
+    uiTexture->onMouseUp = [this](UIControl* c, const UIMouseEvent& e)
+    {
+        dragId = -1;
+    };
 }
 
 void MainVC::hookCmd(sTextureCmd* cmd, UIControl* pCtrl)
@@ -238,7 +269,6 @@ void MainVC::hookCmd(sTextureCmd* cmd, UIControl* pCtrl)
         sTextureCmdFILL* pCmd = (sTextureCmdFILL*)cmd;
 
         auto colorPicker = pCtrl->getChild<UIPanel>("color");
-
         colorPicker->color = sUIColor{pCmd->color.x, pCmd->color.y, pCmd->color.z, pCmd->color.w};
         colorPicker->onClick = [this, pCmd, pCtrl, colorPicker](UIControl* pCtrl, const UIMouseEvent& evt)
         {
@@ -252,22 +282,93 @@ void MainVC::hookCmd(sTextureCmd* cmd, UIControl* pCtrl)
     else if (dynamic_cast<sTextureCmdRECT*>(cmd))
     {
         sTextureCmdRECT* pCmd = (sTextureCmdRECT*)cmd;
+
+        auto colorPicker = pCtrl->getChild<UIPanel>("color");
+        colorPicker->color = sUIColor{pCmd->color.x, pCmd->color.y, pCmd->color.z, pCmd->color.w};
+        colorPicker->onClick = [this, pCmd, pCtrl, colorPicker](UIControl* pCtrl, const UIMouseEvent& evt)
+        {
+            showColorPicker(pCmd->color, [this, pCmd, pCtrl, colorPicker](const Color& color){
+                pCmd->color = color;
+                colorPicker->color = sUIColor{color.x, color.y, color.z, color.w};
+                workingTexture->bake();
+            });
+        };
     }
     else if (dynamic_cast<sTextureCmdBEVEL*>(cmd))
     {
         sTextureCmdBEVEL* pCmd = (sTextureCmdBEVEL*)cmd;
+
+        auto colorPicker = pCtrl->getChild<UIPanel>("color");
+        colorPicker->color = sUIColor{pCmd->color.x, pCmd->color.y, pCmd->color.z, pCmd->color.w};
+        colorPicker->onClick = [this, pCmd, pCtrl, colorPicker](UIControl* pCtrl, const UIMouseEvent& evt)
+        {
+            showColorPicker(pCmd->color, [this, pCmd, pCtrl, colorPicker](const Color& color){
+                pCmd->color = color;
+                colorPicker->color = sUIColor{color.x, color.y, color.z, color.w};
+                workingTexture->bake();
+            });
+        };
+
+        auto size = pCtrl->getChild<UITextBox>("txtBevel");
+        size->setInt(pCmd->bevel);
+        size->onTextChanged = [this, pCmd](UITextBox* pCtrl, const UITextBoxEvent& evt)
+        {
+            pCmd->bevel = pCtrl->getInt();
+            workingTexture->bake();
+        };
     }
     else if (dynamic_cast<sTextureCmdCIRCLE*>(cmd))
     {
         sTextureCmdCIRCLE* pCmd = (sTextureCmdCIRCLE*)cmd;
+
+        auto colorPicker = pCtrl->getChild<UIPanel>("color");
+        colorPicker->color = sUIColor{pCmd->color.x, pCmd->color.y, pCmd->color.z, pCmd->color.w};
+        colorPicker->onClick = [this, pCmd, pCtrl, colorPicker](UIControl* pCtrl, const UIMouseEvent& evt)
+        {
+            showColorPicker(pCmd->color, [this, pCmd, pCtrl, colorPicker](const Color& color){
+                pCmd->color = color;
+                colorPicker->color = sUIColor{color.x, color.y, color.z, color.w};
+                workingTexture->bake();
+            });
+        };
     }
     else if (dynamic_cast<sTextureCmdBEVEL_CIRCLE*>(cmd))
     {
         sTextureCmdBEVEL_CIRCLE* pCmd = (sTextureCmdBEVEL_CIRCLE*)cmd;
+
+        auto colorPicker = pCtrl->getChild<UIPanel>("color");
+        colorPicker->color = sUIColor{pCmd->color.x, pCmd->color.y, pCmd->color.z, pCmd->color.w};
+        colorPicker->onClick = [this, pCmd, pCtrl, colorPicker](UIControl* pCtrl, const UIMouseEvent& evt)
+        {
+            showColorPicker(pCmd->color, [this, pCmd, pCtrl, colorPicker](const Color& color){
+                pCmd->color = color;
+                colorPicker->color = sUIColor{color.x, color.y, color.z, color.w};
+                workingTexture->bake();
+            });
+        };
     }
     else if (dynamic_cast<sTextureCmdLINE*>(cmd))
     {
         sTextureCmdLINE* pCmd = (sTextureCmdLINE*)cmd;
+
+        auto colorPicker = pCtrl->getChild<UIPanel>("color");
+        colorPicker->color = sUIColor{pCmd->color.x, pCmd->color.y, pCmd->color.z, pCmd->color.w};
+        colorPicker->onClick = [this, pCmd, pCtrl, colorPicker](UIControl* pCtrl, const UIMouseEvent& evt)
+        {
+            showColorPicker(pCmd->color, [this, pCmd, pCtrl, colorPicker](const Color& color){
+                pCmd->color = color;
+                colorPicker->color = sUIColor{color.x, color.y, color.z, color.w};
+                workingTexture->bake();
+            });
+        };
+
+        auto size = pCtrl->getChild<UITextBox>("txtSize");
+        size->setInt(pCmd->size);
+        size->onTextChanged = [this, pCmd](UITextBox* pCtrl, const UITextBoxEvent& evt)
+        {
+            pCmd->size = pCtrl->getInt();
+            workingTexture->bake();
+        };
     }
     else if (dynamic_cast<sTextureCmdNORMAL_MAP*>(cmd))
     {
@@ -276,6 +377,28 @@ void MainVC::hookCmd(sTextureCmd* cmd, UIControl* pCtrl)
     else if (dynamic_cast<sTextureCmdGRADIENT*>(cmd))
     {
         sTextureCmdGRADIENT* pCmd = (sTextureCmdGRADIENT*)cmd;
+
+        auto colorPicker = pCtrl->getChild<UIPanel>("colorFrom");
+        colorPicker->color = sUIColor{pCmd->color1.x, pCmd->color1.y, pCmd->color1.z, pCmd->color1.w};
+        colorPicker->onClick = [this, pCmd, pCtrl, colorPicker](UIControl* pCtrl, const UIMouseEvent& evt)
+        {
+            showColorPicker(pCmd->color1, [this, pCmd, pCtrl, colorPicker](const Color& color){
+                pCmd->color1 = color;
+                colorPicker->color = sUIColor{color.x, color.y, color.z, color.w};
+                workingTexture->bake();
+            });
+        };
+
+        auto color2Picker = pCtrl->getChild<UIPanel>("colorTo");
+        color2Picker->color = sUIColor{pCmd->color2.x, pCmd->color2.y, pCmd->color2.z, pCmd->color2.w};
+        color2Picker->onClick = [this, pCmd, pCtrl, color2Picker](UIControl* pCtrl, const UIMouseEvent& evt)
+        {
+            showColorPicker(pCmd->color2, [this, pCmd, pCtrl, color2Picker](const Color& color){
+                pCmd->color2 = color;
+                color2Picker->color = sUIColor{color.x, color.y, color.z, color.w};
+                workingTexture->bake();
+            });
+        };
     }
 }
 
@@ -378,6 +501,10 @@ void MainVC::update()
             }
         }
     }
+    if (OInput->isStateJustDown(DIK_G))
+    {
+        bShowGrid = !bShowGrid;
+    }
 
     uiScreen.update(uiContext, {OMousePos.x, OMousePos.y}, OInput->isStateDown(DIK_MOUSEB1));
 }
@@ -387,6 +514,104 @@ void MainVC::render()
     OSB->begin();
     uiScreen.render(uiContext);
     OSB->end();
+
+    // Now draw selected shape
+    if (uiTexture->isVisible && !uiColorPicker->isVisible)
+    {
+        auto rect = uiPnlTexture->getWorldRect(uiContext);
+        if (bShowGrid)
+        {
+            const Color gridColor{0, .75f, 1, .25f};
+            OPB->begin(ePrimitiveType::LINES);
+            for (float x = rect.position.x + 16; x < (rect.position.x + rect.size.x); x += 16)
+            {
+                OPB->draw({x, rect.position.y}, gridColor);
+                OPB->draw({x, rect.position.y + rect.size.y}, gridColor);
+            }
+            for (float x = rect.position.y + 16; x < (rect.position.y + rect.size.y); x += 16)
+            {
+                OPB->draw({rect.position.x, x}, gridColor);
+                OPB->draw({rect.position.x + rect.size.x, x}, gridColor);
+            }
+            OPB->end();
+        }
+
+        auto cmd = getSelectedCmd().cmd;
+        const Color Magenta(1, 0, 1, .5f);
+        if (cmd)
+        {
+            auto offset = rect.position;
+            if (dynamic_cast<sTextureCmdFILL*>(cmd))
+            {
+                sTextureCmdFILL* pCmd = (sTextureCmdFILL*)cmd;
+            }
+            else if (dynamic_cast<sTextureCmdRECT*>(cmd))
+            {
+                sTextureCmdRECT* pCmd = (sTextureCmdRECT*)cmd;
+                OPB->begin(ePrimitiveType::LINE_STRIP);
+                OPB->draw({offset.x + (float)pCmd->x1, offset.y + (float)pCmd->y1}, Magenta);
+                OPB->draw({offset.x + (float)pCmd->x1, offset.y + (float)pCmd->y2}, Magenta);
+                OPB->draw({offset.x + (float)pCmd->x2, offset.y + (float)pCmd->y2}, Magenta);
+                OPB->draw({offset.x + (float)pCmd->x2, offset.y + (float)pCmd->y1}, Magenta);
+                OPB->draw({offset.x + (float)pCmd->x1, offset.y + (float)pCmd->y1}, Magenta);
+                OPB->end();
+            }
+            else if (dynamic_cast<sTextureCmdBEVEL*>(cmd))
+            {
+                sTextureCmdBEVEL* pCmd = (sTextureCmdBEVEL*)cmd;
+                OPB->begin(ePrimitiveType::LINE_STRIP);
+                OPB->draw({offset.x + (float)pCmd->x1, offset.y + (float)pCmd->y1}, Magenta);
+                OPB->draw({offset.x + (float)pCmd->x1, offset.y + (float)pCmd->y2}, Magenta);
+                OPB->draw({offset.x + (float)pCmd->x2, offset.y + (float)pCmd->y2}, Magenta);
+                OPB->draw({offset.x + (float)pCmd->x2, offset.y + (float)pCmd->y1}, Magenta);
+                OPB->draw({offset.x + (float)pCmd->x1, offset.y + (float)pCmd->y1}, Magenta);
+                OPB->end();
+            }
+            else if (dynamic_cast<sTextureCmdCIRCLE*>(cmd))
+            {
+                sTextureCmdCIRCLE* pCmd = (sTextureCmdCIRCLE*)cmd;
+                OPB->begin(ePrimitiveType::LINES);
+                OPB->draw({offset.x + (float)pCmd->x - 4, offset.y + (float)pCmd->y - 4}, Magenta);
+                OPB->draw({offset.x + (float)pCmd->x + 4, offset.y + (float)pCmd->y + 4}, Magenta);
+                OPB->draw({offset.x + (float)pCmd->x + 4, offset.y + (float)pCmd->y - 4}, Magenta);
+                OPB->draw({offset.x + (float)pCmd->x - 4, offset.y + (float)pCmd->y + 4}, Magenta);
+                OPB->end();
+            }
+            else if (dynamic_cast<sTextureCmdBEVEL_CIRCLE*>(cmd))
+            {
+                sTextureCmdBEVEL_CIRCLE* pCmd = (sTextureCmdBEVEL_CIRCLE*)cmd;
+                OPB->begin(ePrimitiveType::LINES);
+                OPB->draw({offset.x + (float)pCmd->x - 4, offset.y + (float)pCmd->y - 4}, Magenta);
+                OPB->draw({offset.x + (float)pCmd->x + 4, offset.y + (float)pCmd->y + 4}, Magenta);
+                OPB->draw({offset.x + (float)pCmd->x + 4, offset.y + (float)pCmd->y - 4}, Magenta);
+                OPB->draw({offset.x + (float)pCmd->x - 4, offset.y + (float)pCmd->y + 4}, Magenta);
+                OPB->end();
+            }
+            else if (dynamic_cast<sTextureCmdLINE*>(cmd))
+            {
+                sTextureCmdLINE* pCmd = (sTextureCmdLINE*)cmd;
+                OPB->begin(ePrimitiveType::LINES);
+                OPB->draw({offset.x + (float)pCmd->x1, offset.y + (float)pCmd->y1}, Magenta);
+                OPB->draw({offset.x + (float)pCmd->x2, offset.y + (float)pCmd->y2}, Magenta);
+                OPB->end();
+            }
+            else if (dynamic_cast<sTextureCmdNORMAL_MAP*>(cmd))
+            {
+                sTextureCmdNORMAL_MAP* pCmd = (sTextureCmdNORMAL_MAP*)cmd;
+            }
+            else if (dynamic_cast<sTextureCmdGRADIENT*>(cmd))
+            {
+                sTextureCmdGRADIENT* pCmd = (sTextureCmdGRADIENT*)cmd;
+                OPB->begin(ePrimitiveType::LINE_STRIP);
+                OPB->draw({offset.x + (float)pCmd->x1, offset.y + (float)pCmd->y1}, Magenta);
+                OPB->draw({offset.x + (float)pCmd->x1, offset.y + (float)pCmd->y2}, Magenta);
+                OPB->draw({offset.x + (float)pCmd->x2, offset.y + (float)pCmd->y2}, Magenta);
+                OPB->draw({offset.x + (float)pCmd->x2, offset.y + (float)pCmd->y1}, Magenta);
+                OPB->draw({offset.x + (float)pCmd->x1, offset.y + (float)pCmd->y1}, Magenta);
+                OPB->end();
+            }
+        }
+    }
 }
 
 void MainVC::buildUIForTexture()
@@ -527,4 +752,253 @@ void MainVC::updateColorPickerValues()
     uiColorPicker->getChild<UITextBox>("txtG")->setInt(colorPickerSliders[1]);
     uiColorPicker->getChild<UITextBox>("txtB")->setInt(colorPickerSliders[2]);
     uiColorPicker->getChild<UITextBox>("txtA")->setInt(colorPickerSliders[3]);
+}
+
+int MainVC::pickOnTexture(const Vector2& pos, int* out_downState)
+{
+    out_downState[0] = 0;
+    out_downState[1] = 0;
+    out_downState[2] = 0;
+    out_downState[3] = 0;
+    auto cmd = getSelectedCmd().cmd;
+    if (!cmd) return -1;
+
+    if (dynamic_cast<sTextureCmdRECT*>(cmd))
+    {
+        sTextureCmdRECT* pCmd = (sTextureCmdRECT*)cmd;
+        Vector2 p1{(float)pCmd->x1, (float)pCmd->y1};
+        Vector2 p2{(float)pCmd->x2, (float)pCmd->y2};
+        out_downState[0] = pCmd->x1;
+        out_downState[1] = pCmd->y1;
+        out_downState[2] = pCmd->x2;
+        out_downState[3] = pCmd->y2;
+        if (pos.x >= p1.x && pos.x <= p2.x && pos.y >= p1.y && pos.y <= p2.y) return 0;
+        else if (pos.x < p1.x && pos.y < p1.y) return 1;
+        else if (pos.x > p2.x && pos.y < p1.y) return 2;
+        else if (pos.x > p2.x && pos.y > p2.y) return 3;
+        else if (pos.x < p1.x && pos.y > p2.y) return 4;
+        else if (pos.x < p1.x) return 5;
+        else if (pos.y < p1.y) return 6;
+        else if (pos.x > p2.x) return 7;
+        else if (pos.y > p2.y) return 8;
+    }
+    else if (dynamic_cast<sTextureCmdBEVEL*>(cmd))
+    {
+        sTextureCmdBEVEL* pCmd = (sTextureCmdBEVEL*)cmd;
+        Vector2 p1{(float)pCmd->x1, (float)pCmd->y1};
+        Vector2 p2{(float)pCmd->x2, (float)pCmd->y2};
+        out_downState[0] = pCmd->x1;
+        out_downState[1] = pCmd->y1;
+        out_downState[2] = pCmd->x2;
+        out_downState[3] = pCmd->y2;
+        if (pos.x >= p1.x && pos.x <= p2.x && pos.y >= p1.y && pos.y <= p2.y) return 0;
+        else if (pos.x < p1.x && pos.y < p1.y) return 1;
+        else if (pos.x > p2.x && pos.y < p1.y) return 2;
+        else if (pos.x > p2.x && pos.y > p2.y) return 3;
+        else if (pos.x < p1.x && pos.y > p2.y) return 4;
+        else if (pos.x < p1.x) return 5;
+        else if (pos.y < p1.y) return 6;
+        else if (pos.x > p2.x) return 7;
+        else if (pos.y > p2.y) return 8;
+    }
+    else if (dynamic_cast<sTextureCmdCIRCLE*>(cmd))
+    {
+        sTextureCmdCIRCLE* pCmd = (sTextureCmdCIRCLE*)cmd;
+    }
+    else if (dynamic_cast<sTextureCmdBEVEL_CIRCLE*>(cmd))
+    {
+        sTextureCmdBEVEL_CIRCLE* pCmd = (sTextureCmdBEVEL_CIRCLE*)cmd;
+    }
+    else if (dynamic_cast<sTextureCmdLINE*>(cmd))
+    {
+        sTextureCmdLINE* pCmd = (sTextureCmdLINE*)cmd;
+        Vector2 p1{(float)pCmd->x1, (float)pCmd->y1};
+        Vector2 p2{(float)pCmd->x2, (float)pCmd->y2};
+        float dist1 = Vector2::DistanceSquared(p1, pos);
+        float dist2 = Vector2::DistanceSquared(p2, pos);
+        float radius = (float)max<>(8, pCmd->size);
+        if (dist2 < dist1)
+        {
+            if (dist2 < radius * radius)
+            {
+                out_downState[0] = pCmd->x2;
+                out_downState[1] = pCmd->y2;
+                return 1;
+            }
+        }
+        else
+        {
+            if (dist1 < radius * radius)
+            {
+                out_downState[0] = pCmd->x1;
+                out_downState[1] = pCmd->y1;
+                return 0;
+            }
+        }
+    }
+    else if (dynamic_cast<sTextureCmdGRADIENT*>(cmd))
+    {
+        sTextureCmdGRADIENT* pCmd = (sTextureCmdGRADIENT*)cmd;
+        Vector2 p1{(float)pCmd->x1, (float)pCmd->y1};
+        Vector2 p2{(float)pCmd->x2, (float)pCmd->y2};
+        out_downState[0] = pCmd->x1;
+        out_downState[1] = pCmd->y1;
+        out_downState[2] = pCmd->x2;
+        out_downState[3] = pCmd->y2;
+        if (pos.x >= p1.x && pos.x <= p2.x && pos.y >= p1.y && pos.y <= p2.y) return 0;
+        else if (pos.x < p1.x && pos.y < p1.y) return 1;
+        else if (pos.x > p2.x && pos.y < p1.y) return 2;
+        else if (pos.x > p2.x && pos.y > p2.y) return 3;
+        else if (pos.x < p1.x && pos.y > p2.y) return 4;
+        else if (pos.x < p1.x) return 5;
+        else if (pos.y < p1.y) return 6;
+        else if (pos.x > p2.x) return 7;
+        else if (pos.y > p2.y) return 8;
+    }
+
+    return -1;
+}
+
+int toCmdPos(int pos)
+{
+    pos = max<>(-32, pos);
+    pos = min<>(988, pos);
+    return pos / 4 * 4;
+}
+
+void MainVC::updateTextureEdit(const Vector2& diff)
+{
+    auto cmd = getSelectedCmd().cmd;
+    if (!cmd) return;
+    if (dragId == -1) return;
+
+    if (dynamic_cast<sTextureCmdRECT*>(cmd))
+    {
+        sTextureCmdRECT* pCmd = (sTextureCmdRECT*)cmd;
+        if (dragId == 0)
+        {
+            pCmd->x1 = toCmdPos(downState[0] + (int)diff.x);
+            pCmd->y1 = toCmdPos(downState[1] + (int)diff.y);
+            pCmd->x2 = toCmdPos(downState[2] + (int)diff.x);
+            pCmd->y2 = toCmdPos(downState[3] + (int)diff.y);
+        }
+        else if (dragId == 1)
+        {
+            pCmd->x1 = toCmdPos(downState[0] + (int)diff.x);
+            pCmd->y1 = toCmdPos(downState[1] + (int)diff.y);
+        }
+        else if (dragId == 2)
+        {
+            pCmd->x2 = toCmdPos(downState[2] + (int)diff.x);
+            pCmd->y1 = toCmdPos(downState[1] + (int)diff.y);
+        }
+        else if (dragId == 3)
+        {
+            pCmd->x2 = toCmdPos(downState[2] + (int)diff.x);
+            pCmd->y2 = toCmdPos(downState[3] + (int)diff.y);
+        }
+        else if (dragId == 4)
+        {
+            pCmd->x1 = toCmdPos(downState[0] + (int)diff.x);
+            pCmd->y2 = toCmdPos(downState[3] + (int)diff.y);
+        }
+        else if (dragId == 5) pCmd->x1 = toCmdPos(downState[0] + (int)diff.x);
+        else if (dragId == 6) pCmd->y1 = toCmdPos(downState[1] + (int)diff.y);
+        else if (dragId == 7) pCmd->x2 = toCmdPos(downState[2] + (int)diff.x);
+        else if (dragId == 8) pCmd->y2 = toCmdPos(downState[3] + (int)diff.y);
+    }
+    else if (dynamic_cast<sTextureCmdBEVEL*>(cmd))
+    {
+        sTextureCmdBEVEL* pCmd = (sTextureCmdBEVEL*)cmd;
+        if (dragId == 0)
+        {
+            pCmd->x1 = toCmdPos(downState[0] + (int)diff.x);
+            pCmd->y1 = toCmdPos(downState[1] + (int)diff.y);
+            pCmd->x2 = toCmdPos(downState[2] + (int)diff.x);
+            pCmd->y2 = toCmdPos(downState[3] + (int)diff.y);
+        }
+        else if (dragId == 1)
+        {
+            pCmd->x1 = toCmdPos(downState[0] + (int)diff.x);
+            pCmd->y1 = toCmdPos(downState[1] + (int)diff.y);
+        }
+        else if (dragId == 2)
+        {
+            pCmd->x2 = toCmdPos(downState[2] + (int)diff.x);
+            pCmd->y1 = toCmdPos(downState[1] + (int)diff.y);
+        }
+        else if (dragId == 3)
+        {
+            pCmd->x2 = toCmdPos(downState[2] + (int)diff.x);
+            pCmd->y2 = toCmdPos(downState[3] + (int)diff.y);
+        }
+        else if (dragId == 4)
+        {
+            pCmd->x1 = toCmdPos(downState[0] + (int)diff.x);
+            pCmd->y2 = toCmdPos(downState[3] + (int)diff.y);
+        }
+        else if (dragId == 5) pCmd->x1 = toCmdPos(downState[0] + (int)diff.x);
+        else if (dragId == 6) pCmd->y1 = toCmdPos(downState[1] + (int)diff.y);
+        else if (dragId == 7) pCmd->x2 = toCmdPos(downState[2] + (int)diff.x);
+        else if (dragId == 8) pCmd->y2 = toCmdPos(downState[3] + (int)diff.y);
+    }
+    else if (dynamic_cast<sTextureCmdCIRCLE*>(cmd))
+    {
+        sTextureCmdCIRCLE* pCmd = (sTextureCmdCIRCLE*)cmd;
+    }
+    else if (dynamic_cast<sTextureCmdBEVEL_CIRCLE*>(cmd))
+    {
+        sTextureCmdBEVEL_CIRCLE* pCmd = (sTextureCmdBEVEL_CIRCLE*)cmd;
+    }
+    else if (dynamic_cast<sTextureCmdLINE*>(cmd))
+    {
+        sTextureCmdLINE* pCmd = (sTextureCmdLINE*)cmd;
+        if (dragId == 0)
+        {
+            pCmd->x1 = toCmdPos(downState[0] + (int)diff.x);
+            pCmd->y1 = toCmdPos(downState[1] + (int)diff.y);
+        }
+        else if (dragId == 1)
+        {
+            pCmd->x2 = toCmdPos(downState[0] + (int)diff.x);
+            pCmd->y2 = toCmdPos(downState[1] + (int)diff.y);
+        }
+    }
+    else if (dynamic_cast<sTextureCmdGRADIENT*>(cmd))
+    {
+        sTextureCmdGRADIENT* pCmd = (sTextureCmdGRADIENT*)cmd;
+        if (dragId == 0)
+        {
+            pCmd->x1 = toCmdPos(downState[0] + (int)diff.x);
+            pCmd->y1 = toCmdPos(downState[1] + (int)diff.y);
+            pCmd->x2 = toCmdPos(downState[2] + (int)diff.x);
+            pCmd->y2 = toCmdPos(downState[3] + (int)diff.y);
+        }
+        else if (dragId == 1)
+        {
+            pCmd->x1 = toCmdPos(downState[0] + (int)diff.x);
+            pCmd->y1 = toCmdPos(downState[1] + (int)diff.y);
+        }
+        else if (dragId == 2)
+        {
+            pCmd->x2 = toCmdPos(downState[2] + (int)diff.x);
+            pCmd->y1 = toCmdPos(downState[1] + (int)diff.y);
+        }
+        else if (dragId == 3)
+        {
+            pCmd->x2 = toCmdPos(downState[2] + (int)diff.x);
+            pCmd->y2 = toCmdPos(downState[3] + (int)diff.y);
+        }
+        else if (dragId == 4)
+        {
+            pCmd->x1 = toCmdPos(downState[0] + (int)diff.x);
+            pCmd->y2 = toCmdPos(downState[3] + (int)diff.y);
+        }
+        else if (dragId == 5) pCmd->x1 = toCmdPos(downState[0] + (int)diff.x);
+        else if (dragId == 6) pCmd->y1 = toCmdPos(downState[1] + (int)diff.y);
+        else if (dragId == 7) pCmd->x2 = toCmdPos(downState[2] + (int)diff.x);
+        else if (dragId == 8) pCmd->y2 = toCmdPos(downState[3] + (int)diff.y);
+    }
+
+    workingTexture->bake();
 }

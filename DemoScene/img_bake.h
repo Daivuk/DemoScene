@@ -123,7 +123,7 @@ void drawLine(int fromX, int fromY,
         y = i / img.w;
         int t = dot(x - fromX, y - fromY, toX - fromX, toY - fromY);
         int dist;
-        if (t < 0)
+        if (t < 0 || segLen == 0)
         {
             dist = distance(x, y, fromX, fromY);
         }
@@ -161,8 +161,19 @@ void drawLine(int fromX, int fromY,
     }
 }
 
+int clamp(int x, int min, int max)
+{
+    if (x < min) return min;
+    if (x > max) return max;
+    return x;
+}
+
 void fillRect(uint32_t color, int fromX, int fromY, int toX, int toY)
 {
+    fromX = clamp(fromX, 0, img.w);
+    fromY = clamp(fromY, 0, img.h);
+    toX = clamp(toX, 0, img.w);
+    toY = clamp(toY, 0, img.h);
     for (int y = fromY; y < toY; ++y)
     {
         for (int x = fromX; x < toX; ++x)
@@ -172,12 +183,17 @@ void fillRect(uint32_t color, int fromX, int fromY, int toX, int toY)
     }
 }
 
-void bevel(uint32_t strength, int size, int fromX, int fromY, int toX, int toY)
+void bevel(uint32_t color, int size, int fromX, int fromY, int toX, int toY)
 {
+    uint32_t col;
     for (int y = fromY; y < toY; ++y)
     {
+        if (y < 0) continue;
+        if (y >= img.h) return;
         for (int x = fromX; x < toX; ++x)
         {
+            if (x < 0) continue;
+            if (x >= img.w) break;
             if (x >= fromX && x < toX && y >= fromY && y < toY)
             {
                 int dist = x - fromX;
@@ -189,9 +205,11 @@ void bevel(uint32_t strength, int size, int fromX, int fromY, int toX, int toY)
                     int k = y * img.w + x;
                     int percent = 255 - dist * 255 / size;
                     percent = percent * percent / 255;
-                    percent = percent * strength / 255;
-                    uint32_t src = (percent << 24) & 0xff000000;
-                    img.pData[k] = blendColors(src, img.pData[k]);
+
+                    percent = percent * ((color >> 24) & 0xff) / 255;
+                    col = (color & 0x00ffffff) | ((percent << 24) & 0xff000000);
+
+                    img.pData[k] = blendColors(col, img.pData[k]);
                 }
             }
         }

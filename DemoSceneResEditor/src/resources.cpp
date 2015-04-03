@@ -29,12 +29,9 @@ void sTexture::bake()
 
     // Allocate memory
     data = new uint32_t[w * h];
+    ZeroMemory(data, h * w * 4);
 
-    if (cmds.empty())
-    {
-        ZeroMemory(data, h * w * 4);
-    }
-    else
+    if (!cmds.empty())
     {
         // Set our context
         img.pData = data;
@@ -52,10 +49,12 @@ void sTexture::bake()
             else if (dynamic_cast<sTextureCmdRECT*>(cmd))
             {
                 sTextureCmdRECT* pCmd = (sTextureCmdRECT*)cmd;
+                fillRect(packColor(pCmd->color), pCmd->x1, pCmd->y1, pCmd->x2, pCmd->y2);
             }
             else if (dynamic_cast<sTextureCmdBEVEL*>(cmd))
             {
                 sTextureCmdBEVEL* pCmd = (sTextureCmdBEVEL*)cmd;
+                bevel(packColor(pCmd->color), pCmd->bevel, pCmd->x1, pCmd->y1, pCmd->x2, pCmd->y2);
             }
             else if (dynamic_cast<sTextureCmdCIRCLE*>(cmd))
             {
@@ -68,6 +67,7 @@ void sTexture::bake()
             else if (dynamic_cast<sTextureCmdLINE*>(cmd))
             {
                 sTextureCmdLINE* pCmd = (sTextureCmdLINE*)cmd;
+                drawLine(pCmd->x1, pCmd->y1, pCmd->x2, pCmd->y2, packColor(pCmd->color), pCmd->size);
             }
             else if (dynamic_cast<sTextureCmdNORMAL_MAP*>(cmd))
             {
