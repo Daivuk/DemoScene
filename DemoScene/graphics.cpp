@@ -1,6 +1,6 @@
 #include <d3d11.h>
 #include "D3Dcompiler.h"
-#include "mem.h"
+#include "ds_mem.h"
 #include "compress.h"
 #include "string.h"
 #include "graphics.h"

@@ -33,6 +33,10 @@ public:
     void insertCmd(sTextureCmd* pCmd, UIControl* pCtrl);
     void addCmd(sTextureCmd* pCmd, UIControl* pCtrl);
     void buildUIForTexture();
+    void hookCmd(sTextureCmd* pCmd, UIControl* pCtrl);
+
+    void showColorPicker(const Color& color, function<void(const Color&)> callback);
+    void updateColorPickerValues();
 
 public:
     UIContext uiContext;
@@ -42,6 +46,7 @@ public:
     UIControl* uiTexture;
     UIControl* uiInspectorTextures;
     UIControl* uiInspectorTexture;
+    UIControl* uiColorPicker;
 
     sTexture* workingTexture;
 
@@ -50,4 +55,6 @@ public:
     UITextBox* uiTextureW;
     UITextBox* uiTextureH;
     UIControl* pnlTexture;
+
+    function<void(const Color&)> colorPickerCallback;
 };

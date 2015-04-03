@@ -12,12 +12,13 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="graphics.h" />
-    <ClInclude Include="mem.h" />
     <ClInclude Include="compress.h" />
-    <ClInclude Include="string.h" />
     <ClInclude Include="sprite.h" />
     <ClInclude Include="res.h" />
     <ClInclude Include="mat.h" />
+    <ClInclude Include="img_bake.h" />
+    <ClInclude Include="ds_mem.h" />
+    <ClInclude Include="ds_string.h" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="2dps.hlsl" />

@@ -1,5 +1,5 @@
 #include "graphics.h"
-#include "mem.h"
+#include "ds_mem.h"
 
 double inline __declspec (naked) __fastcall sqrt14(double n)
 {

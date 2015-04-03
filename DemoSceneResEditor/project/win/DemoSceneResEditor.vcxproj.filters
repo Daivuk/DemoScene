@@ -12,5 +12,6 @@
     <ClInclude Include="..\..\src\resTexture.h" />
     <ClInclude Include="..\..\src\mainVC.h" />
     <ClInclude Include="..\..\src\resources.h" />
+    <ClInclude Include="..\..\..\DemoScene\img_bake.h" />
   </ItemGroup>
 </Project>

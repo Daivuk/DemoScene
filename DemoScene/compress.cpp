@@ -1,4 +1,4 @@
-#include "string.h"
+#include "ds_string.h"
 
 const char* compress_decompressShader(const char* shader)
 {

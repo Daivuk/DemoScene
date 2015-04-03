@@ -6,6 +6,9 @@ using namespace std;
 static const Color g_guideColor = OColorHex(3399ff);
 static const Color g_toolBtnHoverColor = OColorHex(3e3e40);
 static const Color g_toolBtnDownColor = OColorHex(007acc);
+static const Color g_toolColorSliderBG = OColorHex(000000);
+
+int colorPickerSliders[4];
 
 MainVC::MainVC()
     : uiContext({(float)OSettings->getResolution().x, (float)OSettings->getResolution().y})
@@ -65,11 +68,41 @@ MainVC::MainVC()
         }
     });
 
+    uiContext.addStyle<UIPanel>("pnlTexture", [this](const onut::UIPanel* pCheckBox, const onut::sUIRect& rect)
+    {
+        auto state = pCheckBox->getState(uiContext);
+        auto orect = UI2Onut(rect);
+        OSB->drawRectWithUVs(OGetTexture("dottedLine.png"), orect, {0, 0, orect.z / 16, orect.w / 16}, g_toolBtnHoverColor);
+        if (workingTexture->texture)
+        {
+            OSB->drawRect(workingTexture->texture, orect);
+        }
+    });
+
+    uiContext.addStyle<onut::UIPanel>("colorSlider", [](const onut::UIPanel* pPanel, const onut::sUIRect& rect)
+    {
+        auto colorIndex = reinterpret_cast<uintptr_t>(pPanel->pUserData);
+
+        auto orect = onut::UI2Onut(rect);
+        OSB->drawRect(nullptr, orect, g_toolColorSliderBG);
+        orect.w = (float)colorPickerSliders[colorIndex];
+        orect.y += 255 - (float)colorPickerSliders[colorIndex];
+        if (colorIndex == 0)
+            OSB->drawRect(nullptr, orect, Color(1, 0, 0, 1));
+        if (colorIndex == 1)
+            OSB->drawRect(nullptr, orect, Color(0, 1, 0, 1));
+        if (colorIndex == 2)
+            OSB->drawRect(nullptr, orect, Color(0, 0, 1, 1));
+        if (colorIndex == 3)
+            OSB->drawRect(nullptr, orect, Color(1, 1, 1, 1));
+    });
+
     // Fetch stuff
     uiTextures = uiScreen.getChild("viewTextures");
     uiTexture = uiScreen.getChild("viewTexture");
     uiInspectorTextures = uiScreen.getChild("inspectorTextures");
     uiInspectorTexture = uiScreen.getChild("inspectorTexture");
+    uiColorPicker = uiScreen.getChild("dlgColorPicker");
     uiCmdStack = uiInspectorTexture->getChild("pnlCmdStack");
     cmdControls[eRES_CMD::RES_FILL] = uiInspectorTexture->getChild<UICheckBox>("chkCmdFILL");
     cmdControls[eRES_CMD::RES_RECT] = uiInspectorTexture->getChild<UICheckBox>("chkCmdRECT");
@@ -90,13 +123,15 @@ MainVC::MainVC()
     uiTextureH = uiInspectorTexture->getChild<UITextBox>("txtImgH");
     uiTextureW->onTextChanged = [this](UITextBox* c, const UITextBoxEvent& e)
     {
-        pnlTexture->rect.size.x = (float)uiTextureW->getInt();
-        workingTexture->w = pnlTexture->rect.size.x;
+        auto d = uiTextureW->getInt();
+        pnlTexture->rect.size.x = (float)d;
+        workingTexture->w = d;
     };
     uiTextureH->onTextChanged = [this](UITextBox* c, const UITextBoxEvent& e)
     {
-        pnlTexture->rect.size.y = (float)uiTextureH->getInt();
-        workingTexture->h = pnlTexture->rect.size.y;
+        auto d = uiTextureH->getInt();
+        pnlTexture->rect.size.y = (float)d;
+        workingTexture->h = d;
     };
 
     // Events
@@ -196,6 +231,54 @@ MainVC::MainVC()
     };
 }
 
+void MainVC::hookCmd(sTextureCmd* cmd, UIControl* pCtrl)
+{
+    if (dynamic_cast<sTextureCmdFILL*>(cmd))
+    {
+        sTextureCmdFILL* pCmd = (sTextureCmdFILL*)cmd;
+
+        auto colorPicker = pCtrl->getChild<UIPanel>("color");
+
+        colorPicker->color = sUIColor{pCmd->color.x, pCmd->color.y, pCmd->color.z, pCmd->color.w};
+        colorPicker->onClick = [this, pCmd, pCtrl, colorPicker](UIControl* pCtrl, const UIMouseEvent& evt)
+        {
+            showColorPicker(pCmd->color, [this, pCmd, pCtrl, colorPicker](const Color& color){
+                pCmd->color = color;
+                colorPicker->color = sUIColor{color.x, color.y, color.z, color.w};
+                workingTexture->bake();
+            });
+        };
+    }
+    else if (dynamic_cast<sTextureCmdRECT*>(cmd))
+    {
+        sTextureCmdRECT* pCmd = (sTextureCmdRECT*)cmd;
+    }
+    else if (dynamic_cast<sTextureCmdBEVEL*>(cmd))
+    {
+        sTextureCmdBEVEL* pCmd = (sTextureCmdBEVEL*)cmd;
+    }
+    else if (dynamic_cast<sTextureCmdCIRCLE*>(cmd))
+    {
+        sTextureCmdCIRCLE* pCmd = (sTextureCmdCIRCLE*)cmd;
+    }
+    else if (dynamic_cast<sTextureCmdBEVEL_CIRCLE*>(cmd))
+    {
+        sTextureCmdBEVEL_CIRCLE* pCmd = (sTextureCmdBEVEL_CIRCLE*)cmd;
+    }
+    else if (dynamic_cast<sTextureCmdLINE*>(cmd))
+    {
+        sTextureCmdLINE* pCmd = (sTextureCmdLINE*)cmd;
+    }
+    else if (dynamic_cast<sTextureCmdNORMAL_MAP*>(cmd))
+    {
+        sTextureCmdNORMAL_MAP* pCmd = (sTextureCmdNORMAL_MAP*)cmd;
+    }
+    else if (dynamic_cast<sTextureCmdGRADIENT*>(cmd))
+    {
+        sTextureCmdGRADIENT* pCmd = (sTextureCmdGRADIENT*)cmd;
+    }
+}
+
 void MainVC::insertCmd(sTextureCmd* pCmd, UIControl* pCtrl)
 {
     pCmd->texture = workingTexture;
@@ -206,6 +289,10 @@ void MainVC::insertCmd(sTextureCmd* pCmd, UIControl* pCtrl)
     uiCmdStack->insertAfter(pCtrl, selected.selectBox);
     workingTexture->cmds.insert(workingTexture->cmds.begin() + index, pCmd);
     ((UICheckBox*)pCtrl)->setIsChecked(true);
+
+    workingTexture->bake();
+
+    hookCmd(pCmd, pCtrl);
 }
 
 void MainVC::addCmd(sTextureCmd* pCmd, UIControl* pCtrl)
@@ -213,6 +300,8 @@ void MainVC::addCmd(sTextureCmd* pCmd, UIControl* pCtrl)
     pCmd->texture = workingTexture;
     pCtrl->pUserData = pCmd;
     uiCmdStack->add(pCtrl);
+
+    hookCmd(pCmd, pCtrl);
 }
 
 MainVC::sSelectTextureInfo MainVC::getSelectedTexture() const
@@ -285,6 +374,7 @@ void MainVC::update()
                 uiContext.clearState();
                 uiCmdStack->remove(selected.selectBox);
                 workingTexture->cmds.erase(workingTexture->cmds.begin() + selected.index);
+                workingTexture->bake();
             }
         }
     }
@@ -340,4 +430,101 @@ void MainVC::buildUIForTexture()
     uiTextureW->setInt(workingTexture->w);
     uiTextureH->setInt(workingTexture->h);
     pnlTexture->rect.size = {(float)workingTexture->w, (float)workingTexture->h};
+    workingTexture->bake();
+}
+
+void MainVC::showColorPicker(const Color& color, function<void(const Color&)> callback)
+{
+    colorPickerCallback = callback;
+    uiColorPicker->isVisible = true;
+
+    colorPickerSliders[0] = (int)(color.x * 255.f);
+    colorPickerSliders[1] = (int)(color.y * 255.f);
+    colorPickerSliders[2] = (int)(color.z * 255.f);
+    colorPickerSliders[3] = (int)(color.w * 255.f);
+
+    uiColorPicker->getChild<UIPanel>("R")->pUserData = reinterpret_cast<void*>((uintptr_t)0);
+    uiColorPicker->getChild<UIPanel>("G")->pUserData = reinterpret_cast<void*>((uintptr_t)1);
+    uiColorPicker->getChild<UIPanel>("B")->pUserData = reinterpret_cast<void*>((uintptr_t)2);
+    uiColorPicker->getChild<UIPanel>("A")->pUserData = reinterpret_cast<void*>((uintptr_t)3);
+
+    uiColorPicker->getChild<UIPanel>("pnlColor")->color = sUIColor{color.x, color.y, color.z, color.w};
+    uiColorPicker->getChild<UIPanel>("pnlPrevColor")->color = sUIColor{color.x, color.y, color.z, color.w};
+
+    uiColorPicker->getChild<UIButton>("btnOK")->onClick = [this, &color](UIControl* c, const UIMouseEvent& e)
+    {
+        colorPickerCallback(Color{
+            (float)colorPickerSliders[0] / 255.f,
+            (float)colorPickerSliders[1] / 255.f,
+            (float)colorPickerSliders[2] / 255.f,
+            (float)colorPickerSliders[3] / 255.f});
+        uiColorPicker->isVisible = false;
+    };
+    uiColorPicker->getChild<UIButton>("btnCancel")->onClick = [this, &color](UIControl* c, const UIMouseEvent& e)
+    {
+        uiColorPicker->isVisible = false;
+    };
+    auto mouseDownLambda = [this](UIControl* c, const UIMouseEvent& e)
+    {
+        if (c == uiContext.getDownControl())
+        {
+            auto colorAmount = 256 - (int)e.localMousePos.y;
+            if (c == uiColorPicker->getChild<UIPanel>("R"))
+            {
+                colorPickerSliders[0] = max<>(0, min<>(255, colorAmount));
+            }
+            if (c == uiColorPicker->getChild<UIPanel>("G"))
+            {
+                colorPickerSliders[1] = max<>(0, min<>(255, colorAmount));
+            }
+            if (c == uiColorPicker->getChild<UIPanel>("B"))
+            {
+                colorPickerSliders[2] = max<>(0, min<>(255, colorAmount));
+            }
+            if (c == uiColorPicker->getChild<UIPanel>("A"))
+            {
+                colorPickerSliders[3] = max<>(0, min<>(255, colorAmount));
+            }
+            updateColorPickerValues();
+        }
+    };
+
+    uiColorPicker->getChild<UIPanel>("R")->onMouseMove = mouseDownLambda;
+    uiColorPicker->getChild<UIPanel>("G")->onMouseMove = mouseDownLambda;
+    uiColorPicker->getChild<UIPanel>("B")->onMouseMove = mouseDownLambda;
+    uiColorPicker->getChild<UIPanel>("A")->onMouseMove = mouseDownLambda;
+
+    uiColorPicker->getChild<UITextBox>("txtR")->onTextChanged = [this](UITextBox* c, const UITextBoxEvent& e)
+    {
+        colorPickerSliders[0] = c->getInt();
+        updateColorPickerValues();
+    };
+    uiColorPicker->getChild<UITextBox>("txtG")->onTextChanged = [this](UITextBox* c, const UITextBoxEvent& e)
+    {
+        colorPickerSliders[1] = c->getInt();
+        updateColorPickerValues();
+    };
+    uiColorPicker->getChild<UITextBox>("txtB")->onTextChanged = [this](UITextBox* c, const UITextBoxEvent& e)
+    {
+        colorPickerSliders[2] = c->getInt();
+        updateColorPickerValues();
+    };
+    uiColorPicker->getChild<UITextBox>("txtA")->onTextChanged = [this](UITextBox* c, const UITextBoxEvent& e)
+    {
+        colorPickerSliders[3] = c->getInt();
+        updateColorPickerValues();
+    };
+}
+
+void MainVC::updateColorPickerValues()
+{
+    uiColorPicker->getChild<UIPanel>("pnlColor")->color = sUIColor{
+        (float)colorPickerSliders[0] / 255.f,
+        (float)colorPickerSliders[1] / 255.f,
+        (float)colorPickerSliders[2] / 255.f,
+        1};
+    uiColorPicker->getChild<UITextBox>("txtR")->setInt(colorPickerSliders[0]);
+    uiColorPicker->getChild<UITextBox>("txtG")->setInt(colorPickerSliders[1]);
+    uiColorPicker->getChild<UITextBox>("txtB")->setInt(colorPickerSliders[2]);
+    uiColorPicker->getChild<UITextBox>("txtA")->setInt(colorPickerSliders[3]);
 }

@@ -1,7 +1,7 @@
 extern "C" int _fltused = 0x9875; // has taken from "stub.c" in the CRT sources.
 
 #include <windows.h>
-#include "mem.h"
+#include "ds_mem.h"
 #include "graphics.h"
 #include "res.h"
 #include "sprite.h"
