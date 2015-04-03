@@ -483,6 +483,7 @@ enum eRES_CMD : uint8_t
     RES_CIRCLE,
     RES_BEVEL_CIRCLE,
     RES_LINE,
+    RES_GRADIENT,
     RES_NORMAL_MAP,
     RES_IMG_END,
 
