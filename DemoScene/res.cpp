@@ -65,6 +65,7 @@ void textureFromData(sTexture& out, const uint8_t* pData, UINT w, UINT h)
 
     out.w = (int)w;
     out.h = (int)h;
+    out.data = (uint32_t*)pData;
 }
 
 void meshFromData(sMesh& out, sMeshQuad* pQuad, sTexture* pTexture, sTexture* pNormalMap)
@@ -254,32 +255,6 @@ void createImg(int w, int h)
     img.h = h;
 }
 
-enum eRES_CMD : uint8_t
-{
-    RES_IMG,
-    RES_FILL,
-    RES_RECT,
-    RES_BEVEL,
-    RES_CIRCLE,
-    RES_BEVEL_CIRCLE,
-    RES_LINE,
-    RES_GRADIENT,
-    RES_NORMAL_MAP,
-    RES_IMG_END,
-
-    RES_MESH,
-    RES_QUAD, 
-    RES_MESH_END,
-
-    RES_MODEL,
-    RES_CAMERA,
-    RES_EMITTER,
-    RES_LIGHT,
-    RES_SPOT_LIGHT,
-    RES_SUN_LIGHT,
-    RES_AMBIENT
-};
-
 uint8_t resData[] = {
 #include "res_data.h"
  /*   3, // Texture count
@@ -389,41 +364,41 @@ void res_load()
                 break;
             case RES_RECT:
                 fillRect(*(uint32_t*)(resData + i + 1),
-                         (int)(resData[i + 5]) * 4,
-                         (int)(resData[i + 6]) * 4,
-                         (int)(resData[i + 7]) * 4,
-                         (int)(resData[i + 8]) * 4);
+                         unpackPos(resData[i + 5]),
+                         unpackPos(resData[i + 6]),
+                         unpackPos(resData[i + 7]),
+                         unpackPos(resData[i + 8]));
                 i += 8;
                 break;
             case RES_BEVEL:
-                bevel((int)(resData[i + 1]),
-                      (int)(resData[i + 2]),
-                      (int)(resData[i + 3]) * 4,
-                      (int)(resData[i + 4]) * 4,
-                      (int)(resData[i + 5]) * 4,
-                      (int)(resData[i + 6]) * 4);
-                i += 6;
+                bevel(*(uint32_t*)(resData + i + 1),
+                         resData[i + 9],
+                         unpackPos(resData[i + 5]),
+                         unpackPos(resData[i + 6]),
+                         unpackPos(resData[i + 7]),
+                         unpackPos(resData[i + 8]));
+                i += 9;
                 break;
             case RES_CIRCLE:
-                drawCircle((int)(resData[i + 5]) * 4, 
-                           (int)(resData[i + 6]) * 4, 
+                drawCircle(unpackPos(resData[i + 5]),
+                           unpackPos(resData[i + 6]),
                            resData[i + 7], 
                            *(uint32_t*)(resData + i + 1));
                 i += 7;
                 break;
             case RES_BEVEL_CIRCLE:
-                drawCircle((int)(resData[i + 5]) * 4, 
-                           (int)(resData[i + 6]) * 4, 
+                drawCircle(unpackPos(resData[i + 5]),
+                           unpackPos(resData[i + 6]),
                            resData[i + 7], 
                            *(uint32_t*)(resData + i + 1),
                            (int)(resData[i + 8]));
                 i += 8;
                 break;
             case RES_LINE:
-                drawLine((int)(resData[i + 5]) * 4,
-                         (int)(resData[i + 6]) * 4, 
-                         (int)(resData[i + 7]) * 4,
-                         (int)(resData[i + 8]) * 4,
+                drawLine(unpackPos(resData[i + 5]),
+                         unpackPos(resData[i + 6]),
+                         unpackPos(resData[i + 7]),
+                         unpackPos(resData[i + 8]),
                          *(uint32_t*)(resData + i + 1),
                          resData[i + 9]);
                 i += 9;
@@ -433,6 +408,17 @@ void res_load()
                 break;
             case RES_NORMAL_MAP:
                 normalMap();
+                break;
+            case RES_IMAGE:
+                putImg(*(uint32_t*)(resData + i + 1),
+                       unpackPos(resData[i + 5]),
+                       unpackPos(resData[i + 6]),
+                       unpackPos(resData[i + 7]),
+                       unpackPos(resData[i + 8]),
+                       res_textures[resData[i + 9]].data,
+                       res_textures[resData[i + 9]].w,
+                       res_textures[resData[i + 9]].h);
+                i += 9;
                 break;
 
             case RES_MESH:

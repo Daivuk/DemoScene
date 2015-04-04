@@ -1,11 +1,13 @@
 #pragma once
 #include <d3d11.h>
+#include <cinttypes>
 
 struct sTexture
 {
     ID3D11ShaderResourceView* view;
     int w;
     int h;
+    uint32_t* data;
 };
 
 struct sMesh

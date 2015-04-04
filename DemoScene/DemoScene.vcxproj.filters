@@ -9,6 +9,7 @@
     <ClCompile Include="sprite.cpp" />
     <ClCompile Include="res.cpp" />
     <ClCompile Include="mat.cpp" />
+    <ClCompile Include="img_bake.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="graphics.h" />

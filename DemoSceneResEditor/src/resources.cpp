@@ -1,5 +1,4 @@
 #include "resources.h"
-#include "img_bake.h"
 
 vector<sTexture*> res_textures;
 
@@ -43,42 +42,54 @@ void sTexture::bake()
         {
             if (dynamic_cast<sTextureCmdFILL*>(cmd))
             {
-                sTextureCmdFILL* pCmd = (sTextureCmdFILL*)cmd;
+                auto* pCmd = (sTextureCmdFILL*)cmd;
                 fill(packColor(pCmd->color));
             }
             else if (dynamic_cast<sTextureCmdRECT*>(cmd))
             {
-                sTextureCmdRECT* pCmd = (sTextureCmdRECT*)cmd;
+                auto* pCmd = (sTextureCmdRECT*)cmd;
                 fillRect(packColor(pCmd->color), pCmd->x1, pCmd->y1, pCmd->x2, pCmd->y2);
             }
             else if (dynamic_cast<sTextureCmdBEVEL*>(cmd))
             {
-                sTextureCmdBEVEL* pCmd = (sTextureCmdBEVEL*)cmd;
+                auto* pCmd = (sTextureCmdBEVEL*)cmd;
                 bevel(packColor(pCmd->color), pCmd->bevel, pCmd->x1, pCmd->y1, pCmd->x2, pCmd->y2);
             }
             else if (dynamic_cast<sTextureCmdCIRCLE*>(cmd))
             {
-                sTextureCmdCIRCLE* pCmd = (sTextureCmdCIRCLE*)cmd;
+                auto* pCmd = (sTextureCmdCIRCLE*)cmd;
                 drawCircle(pCmd->x, pCmd->y, pCmd->radius, packColor(pCmd->color));
             }
             else if (dynamic_cast<sTextureCmdBEVEL_CIRCLE*>(cmd))
             {
-                sTextureCmdBEVEL_CIRCLE* pCmd = (sTextureCmdBEVEL_CIRCLE*)cmd;
+                auto* pCmd = (sTextureCmdBEVEL_CIRCLE*)cmd;
                 drawCircle(pCmd->x, pCmd->y, pCmd->radius, packColor(pCmd->color), pCmd->bevel);
             }
             else if (dynamic_cast<sTextureCmdLINE*>(cmd))
             {
-                sTextureCmdLINE* pCmd = (sTextureCmdLINE*)cmd;
+                auto* pCmd = (sTextureCmdLINE*)cmd;
                 drawLine(pCmd->x1, pCmd->y1, pCmd->x2, pCmd->y2, packColor(pCmd->color), pCmd->size);
             }
             else if (dynamic_cast<sTextureCmdNORMAL_MAP*>(cmd))
             {
-                sTextureCmdNORMAL_MAP* pCmd = (sTextureCmdNORMAL_MAP*)cmd;
+                auto* pCmd = (sTextureCmdNORMAL_MAP*)cmd;
                 normalMap();
             }
             else if (dynamic_cast<sTextureCmdGRADIENT*>(cmd))
             {
-                sTextureCmdGRADIENT* pCmd = (sTextureCmdGRADIENT*)cmd;
+                auto* pCmd = (sTextureCmdGRADIENT*)cmd;
+            }
+            else if (dynamic_cast<sTextureCmdIMAGE*>(cmd))
+            {
+                auto* pCmd = (sTextureCmdIMAGE*)cmd;
+                if (pCmd->imgId < (int)res_textures.size())
+                {
+                    auto srcTex = res_textures[pCmd->imgId];
+                    if (srcTex->data)
+                    {
+                        putImg(packColor(pCmd->color), pCmd->x1, pCmd->y1, pCmd->x2, pCmd->y2, srcTex->data, srcTex->w, srcTex->h);
+                    }
+                }
             }
         }
     }
@@ -168,14 +179,21 @@ sTextureCmd* sTextureCmdNORMAL_MAP::copy()
     return new sTextureCmdNORMAL_MAP();
 }
 
+sTextureCmd* sTextureCmdIMAGE::copy()
+{
+    auto cmd = new sTextureCmdIMAGE();
+    cmd->color = color;
+    cmd->x1 = x1;
+    cmd->y1 = y1;
+    cmd->x2 = x2;
+    cmd->y2 = y2;
+    cmd->imgId = imgId;
+    return cmd;
+}
+
 uint8_t packPos(int pos)
 {
     return (pos + 32) / 4;
-}
-
-int unpackPos(uint8_t pos)
-{
-    return (int)pos * 4 - 32;
 }
 
 void sTextureCmdFILL::serialize(vector<uint8_t>& data)
@@ -412,6 +430,40 @@ int sTextureCmdNORMAL_MAP::deserialize(uint8_t* pData)
     return 0;
 }
 
+void sTextureCmdIMAGE::serialize(vector<uint8_t>& data)
+{
+    data.push_back(RES_IMAGE);
+
+    data.push_back((uint8_t)(color.x * 255.f));
+    data.push_back((uint8_t)(color.y * 255.f));
+    data.push_back((uint8_t)(color.z * 255.f));
+    data.push_back((uint8_t)(color.w * 255.f));
+
+    data.push_back(packPos(x1));
+    data.push_back(packPos(y1));
+    data.push_back(packPos(x2));
+    data.push_back(packPos(y2));
+
+    data.push_back((uint8_t)imgId);
+}
+
+int sTextureCmdIMAGE::deserialize(uint8_t* pData)
+{
+    color.x = (float)pData[0] / 255.f;
+    color.y = (float)pData[1] / 255.f;
+    color.z = (float)pData[2] / 255.f;
+    color.w = (float)pData[3] / 255.f;
+
+    x1 = unpackPos(pData[4]);
+    y1 = unpackPos(pData[5]);
+    x2 = unpackPos(pData[6]);
+    y2 = unpackPos(pData[7]);
+
+    imgId = (int)pData[8];
+
+    return 9;
+}
+
 int findExpo(int texSize)
 {
     int expo = 0;
@@ -455,6 +507,7 @@ int sTexture::deserialize(uint8_t* pData)
             case RES_LINE: cmd = new sTextureCmdLINE(); break;
             case RES_GRADIENT: cmd = new sTextureCmdGRADIENT(); break;
             case RES_NORMAL_MAP: cmd = new sTextureCmdNORMAL_MAP(); break;
+            case RES_IMAGE: cmd = new sTextureCmdIMAGE(); break;
         }
         size += cmd->deserialize(pData + size + 1);
         cmds.push_back(cmd);
@@ -463,4 +516,20 @@ int sTexture::deserialize(uint8_t* pData)
     }
 
     return size;
+}
+
+sTexture* sTexture::copy() const
+{
+    sTexture* pRet = new sTexture();
+
+    pRet->w = w;
+    pRet->h = h;
+    
+    for (auto cmd : cmds)
+    {
+        pRet->cmds.push_back(cmd->copy());
+    }
+
+    pRet->bake();
+    return pRet;
 }

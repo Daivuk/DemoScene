@@ -114,6 +114,7 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="graphics.cpp" />
+    <ClCompile Include="img_bake.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="mat.cpp" />
     <ClCompile Include="mem.cpp" />

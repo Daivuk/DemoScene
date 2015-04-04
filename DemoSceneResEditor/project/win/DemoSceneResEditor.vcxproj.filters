@@ -5,6 +5,7 @@
     <ClCompile Include="..\..\src\styles.cpp" />
     <ClCompile Include="..\..\src\mainVC.cpp" />
     <ClCompile Include="..\..\src\resources.cpp" />
+    <ClCompile Include="..\..\..\DemoScene\img_bake.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\src\styles.h" />

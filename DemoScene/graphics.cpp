@@ -7,6 +7,10 @@
 #include "res.h"
 #include "mat.h"
 
+#if _DEBUG
+#include <cassert>
+#endif
+
 HWND windowHandle;
 
 // Device stuff
@@ -210,8 +214,7 @@ ID3DBlob* gfx_compileShader(const char* shader, const char stype)
     if (errorBlob)
     {
         auto pError = (char*)errorBlob->GetBufferPointer();
-        int tmp;
-        tmp = 5;
+        assert(false);
     }
 #else
     D3DCompile(shader, size, nullptr, Shader_Macros, nullptr, profile, profile, D3DCOMPILE_ENABLE_STRICTNESS, 0, &shaderBlob, nullptr);

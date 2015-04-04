@@ -1,33 +1,8 @@
 #pragma once
 #include "onut.h"
+#include "img_bake.h"
 using namespace std;
 using namespace onut;
-
-enum eRES_CMD : uint8_t
-{
-    RES_IMG,
-    RES_FILL,
-    RES_RECT,
-    RES_BEVEL,
-    RES_CIRCLE,
-    RES_BEVEL_CIRCLE,
-    RES_LINE,
-    RES_GRADIENT,
-    RES_NORMAL_MAP,
-    RES_IMG_END,
-
-    RES_MESH,
-    RES_QUAD,
-    RES_MESH_END,
-
-    RES_MODEL,
-    RES_CAMERA,
-    RES_EMITTER,
-    RES_LIGHT,
-    RES_SPOT_LIGHT,
-    RES_SUN_LIGHT,
-    RES_AMBIENT
-};
 
 struct sTextureCmd
 {
@@ -122,12 +97,24 @@ struct sTextureCmdNORMAL_MAP : public sTextureCmd
     int deserialize(uint8_t* pData) override;
 };
 
+struct sTextureCmdIMAGE : public sTextureCmd
+{
+    Color color = Color::White;
+    int x1 = 0, y1 = 0, x2 = 32, y2 = 32;
+    int imgId = 0;
+    sTextureCmd* copy() override;
+    eRES_CMD getType() override { return RES_IMAGE; }
+    void serialize(vector<uint8_t>& data) override;
+    int deserialize(uint8_t* pData) override;
+};
+
 struct sTexture
 {
     virtual ~sTexture();
     void bake();
     void serialize(vector<uint8_t>& data);
     int deserialize(uint8_t* pData);
+    sTexture* copy() const;
 
     Texture* texture = nullptr;
     Texture* texNormalMap = nullptr;
