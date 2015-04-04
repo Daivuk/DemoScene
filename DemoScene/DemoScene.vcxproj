@@ -130,6 +130,7 @@
     <ClInclude Include="mat.h" />
     <ClInclude Include="ds_mem.h" />
     <ClInclude Include="res.h" />
+    <ClInclude Include="res_data.h" />
     <ClInclude Include="sprite.h" />
     <ClInclude Include="ds_string.h" />
   </ItemGroup>

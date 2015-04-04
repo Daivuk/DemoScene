@@ -1,12 +1,6 @@
 #include "graphics.h"
 #include "ds_mem.h"
-
-double inline __declspec (naked) __fastcall sqrt14(double n)
-{
-    _asm fld qword ptr[esp + 4]
-    _asm fsqrt
-    _asm ret 8
-}
+#include "mat.h"
 
 void mat_identity(float* m)
 {

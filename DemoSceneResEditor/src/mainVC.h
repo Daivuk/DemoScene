@@ -41,6 +41,9 @@ public:
     int pickOnTexture(const Vector2& pos, int* out_downState);
     void updateTextureEdit(const Vector2& diff, const Vector2& mousePos);
 
+    void load();
+    void save();
+
 public:
     UIContext uiContext;
     UIControl uiScreen;
@@ -59,6 +62,9 @@ public:
     UITextBox* uiTextureW;
     UITextBox* uiTextureH;
     UIControl* pnlTexture;
+    UIControl* uiSaved;
+    OAnimf uiSavedY;
+    OAnimi uiSavedV;
 
     int dragId = -1;
     int downState[4];

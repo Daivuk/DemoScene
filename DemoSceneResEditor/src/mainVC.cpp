@@ -105,6 +105,9 @@ MainVC::MainVC()
     uiInspectorTexture = uiScreen.getChild("inspectorTexture");
     uiColorPicker = uiScreen.getChild("dlgColorPicker");
     uiCmdStack = uiInspectorTexture->getChild("pnlCmdStack");
+    uiSaved = uiScreen.getChild("lblSaved");
+    uiSavedY = uiSaved->rect.position.y;
+    uiSavedV = uiSaved->isVisible ? 1 : 0;
     cmdControls[eRES_CMD::RES_FILL] = uiInspectorTexture->getChild<UICheckBox>("chkCmdFILL");
     cmdControls[eRES_CMD::RES_RECT] = uiInspectorTexture->getChild<UICheckBox>("chkCmdRECT");
     cmdControls[eRES_CMD::RES_BEVEL] = uiInspectorTexture->getChild<UICheckBox>("chkCmdBEVEL");
@@ -260,6 +263,8 @@ MainVC::MainVC()
     {
         dragId = -1;
     };
+
+    load();
 }
 
 void MainVC::hookCmd(sTextureCmd* cmd, UIControl* pCtrl)
@@ -417,7 +422,7 @@ void MainVC::insertCmd(sTextureCmd* pCmd, UIControl* pCtrl)
     auto selected = getSelectedCmd();
     auto index = selected.index;
     if (index < workingTexture->cmds.size()) ++index;
-    uiCmdStack->insertAfter(pCtrl, selected.selectBox);
+    uiCmdStack->insertAt(pCtrl, index);
     workingTexture->cmds.insert(workingTexture->cmds.begin() + index, pCmd);
     ((UICheckBox*)pCtrl)->setIsChecked(true);
 
@@ -558,6 +563,14 @@ void MainVC::update()
     {
         bShowGrid = !bShowGrid;
     }
+    if (OInput->isStateJustDown(DIK_S) && OInput->isStateDown(DIK_LCONTROL))
+    {
+        save();
+    }
+
+    // Update the little save popup position
+    uiSaved->rect.position.y = uiSavedY.get();
+    uiSaved->isVisible = uiSavedV.get() ? true : false;
 
     uiScreen.update(uiContext, {OMousePos.x, OMousePos.y}, OInput->isStateDown(DIK_MOUSEB1));
 }
@@ -1106,4 +1119,88 @@ void MainVC::updateTextureEdit(const Vector2& diff, const Vector2& mousePos)
     }
 
     workingTexture->bake();
+}
+
+#include <fstream>
+
+void MainVC::load()
+{
+    vector<uint8_t> data;
+
+    // Load the byte array
+    ifstream fic("../../../DemoScene/res_data.h");
+    char comma;
+    while (!fic.eof())
+    {
+        int b;
+        fic >> b;
+        if (fic.eof()) break;
+        fic >> comma;
+        data.push_back((uint8_t)b);
+    }
+    fic.close();
+
+    // Deserialize
+    for (size_t i = 4; i < data.size(); ++i)
+    {
+        auto b = data[i];
+        switch (b)
+        {
+            case RES_IMG:
+            {
+                auto pTexture = new sTexture();
+                i += pTexture->deserialize(data.data() + i + 1);
+                pTexture->bake();
+
+                auto pSelectBox = new UICheckBox();
+
+                pSelectBox->rect.size = {128, 128};
+                pSelectBox->pUserData = pTexture;
+                pSelectBox->setStyle("selectTexture");
+                pSelectBox->behavior = eUICheckBehavior::EXCLUSIVE;
+
+                uiTextures->add(pSelectBox);
+                res_textures.push_back(pTexture);
+                break;
+            }
+        }
+    }
+}
+
+void MainVC::save()
+{
+    vector<uint8_t> data;
+
+    data.push_back((uint8_t)res_textures.size()); // Texture count
+    data.push_back(0); // Mesh count
+    data.push_back(0); // Model count
+    data.push_back(0); // Camera count
+
+    // Serialize textures
+    for (auto texture : res_textures)
+    {
+        texture->serialize(data);
+    }
+
+    // Compress
+    // ... todo
+
+    // Save the byte array
+    ofstream fic("../../../DemoScene/res_data.h");
+    for (auto b : data)
+    {
+        fic << (int)b << ",";
+    }
+    fic.close();
+
+    // Notify with a little animation
+    uiSavedV.start({
+        {1, 0},
+        {0, 3, OTeleport}
+    });
+    uiSavedY.start({
+        {uiSaved->rect.position.y - uiSaved->rect.size.y, .25f, OEaseOut},
+        {uiSaved->rect.position.y - uiSaved->rect.size.y, 2.5f},
+        {uiSaved->rect.position.y, .25f, OEaseIn},
+    });
 }

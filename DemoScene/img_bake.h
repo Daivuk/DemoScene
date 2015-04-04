@@ -12,7 +12,7 @@ double inline __declspec (naked) __fastcall sqrt14(double n)
 }
 #else
 #include "ds_mem.h"
-extern double inline __declspec (naked) __fastcall sqrt14(double n);
+#include "mat.h"
 #endif
 
 struct sImgContext

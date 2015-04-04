@@ -281,7 +281,8 @@ enum eRES_CMD : uint8_t
 };
 
 uint8_t resData[] = {
-    3, // Texture count
+#include "res_data.h"
+ /*   3, // Texture count
     1, // Mesh count
     4, // Model count
     1, // Camera count
@@ -348,7 +349,7 @@ uint8_t resData[] = {
     RES_MODEL, 48, 0, 64, 0, 0, 0, 0, 0, 1, 0,
 
     // Cameras
-    RES_CAMERA, 32, 0, 0, 0, 32, 0, 0, 0, 64, 0, 16, 0,
+    RES_CAMERA, 32, 0, 0, 0, 32, 0, 0, 0, 64, 0, 16, 0,*/
 };
 
 void res_load()
