@@ -4,8 +4,15 @@
 #include <memory.h>
 #define mem_alloc malloc
 #define mem_cpy memcpy
+double inline __declspec (naked) __fastcall sqrt14(double n)
+{
+    _asm fld qword ptr[esp + 4]
+    _asm fsqrt
+    _asm ret 8
+}
 #else
 #include "ds_mem.h"
+extern double inline __declspec (naked) __fastcall sqrt14(double n);
 #endif
 
 struct sImgContext
@@ -204,7 +211,7 @@ void bevel(uint32_t color, int size, int fromX, int fromY, int toX, int toY)
                 {
                     int k = y * img.w + x;
                     int percent = 255 - dist * 255 / size;
-                    percent = percent * percent / 255;
+                //    percent = percent * percent / 255;
 
                     percent = percent * ((color >> 24) & 0xff) / 255;
                     col = (color & 0x00ffffff) | ((percent << 24) & 0xff000000);
@@ -215,6 +222,8 @@ void bevel(uint32_t color, int size, int fromX, int fromY, int toX, int toY)
         }
     }
 }
+
+#define NORMAL_STRENGTH 2;
 
 void normalMap()
 {
@@ -231,11 +240,20 @@ void normalMap()
             int px = img.pData[kx] & 0xff;
             int py = img.pData[ky] & 0xff;
 
-            int nx = p - px;
-            int ny = p - py;
+            int nx = (p - px) * NORMAL_STRENGTH;
+            int ny = (p - py) * NORMAL_STRENGTH;
+            int nz = 255;
+
+            // Normalize
+            int len = (int)sqrt14((double)(nx * nx + ny * ny + nz * nz));
+            nx = nx * 255 / len;
+            ny = ny * 255 / len;
+            nz = nz * 255 / len;
+
+            // Bring back in range
             nx = (nx + 255) / 2;
             ny = (ny + 255) / 2;
-            int nz = 255 - (255 - nx) * (255 - ny) / 255;
+            nz = (nz + 255) / 2;
 
             pNewData[k] =
                 0xff000000 |

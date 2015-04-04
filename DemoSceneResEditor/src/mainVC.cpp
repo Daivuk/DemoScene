@@ -252,7 +252,7 @@ MainVC::MainVC()
         Vector2 mouseDiff{mousePos.x - onDownMousePos.x, mousePos.y - onDownMousePos.y};
         if (mouseDiff != lastDragDiff)
         {
-            updateTextureEdit(mouseDiff);
+            updateTextureEdit(mouseDiff, Vector2{mousePos.x, mousePos.y});
             lastDragDiff = mouseDiff;
         }
     };
@@ -345,6 +345,14 @@ void MainVC::hookCmd(sTextureCmd* cmd, UIControl* pCtrl)
                 colorPicker->color = sUIColor{color.x, color.y, color.z, color.w};
                 workingTexture->bake();
             });
+        };
+
+        auto size = pCtrl->getChild<UITextBox>("txtBevel");
+        size->setInt(pCmd->bevel);
+        size->onTextChanged = [this, pCmd](UITextBox* pCtrl, const UITextBoxEvent& evt)
+        {
+            pCmd->bevel = pCtrl->getInt();
+            workingTexture->bake();
         };
     }
     else if (dynamic_cast<sTextureCmdLINE*>(cmd))
@@ -498,6 +506,51 @@ void MainVC::update()
                 uiCmdStack->remove(selected.selectBox);
                 workingTexture->cmds.erase(workingTexture->cmds.begin() + selected.index);
                 workingTexture->bake();
+            }
+        }
+
+        auto selectedCmd = getSelectedCmd();
+        if (selectedCmd.cmd)
+        {
+            if (OInput->isStateJustDown(DIK_D))
+            {
+                insertCmd(selectedCmd.cmd->copy(), cmdControls[selectedCmd.cmd->getType()]->copy());
+            }
+            else if (OInput->isStateJustDown(DIK_DOWN) &&
+                     OInput->isStateDown(DIK_LCONTROL))
+            {
+                if (selectedCmd.index < workingTexture->cmds.size() - 1)
+                {
+                    selectedCmd.selectBox->retain();
+                    selectedCmd.selectBox->remove();
+                    workingTexture->cmds.erase(workingTexture->cmds.begin() + selectedCmd.index);
+                    ++selectedCmd.index;
+
+                    uiCmdStack->insertAt(selectedCmd.selectBox, selectedCmd.index);
+                    workingTexture->cmds.insert(workingTexture->cmds.begin() + selectedCmd.index, selectedCmd.cmd);
+
+                    selectedCmd.selectBox->release();
+
+                    workingTexture->bake();
+                }
+            }
+            else if (OInput->isStateJustDown(DIK_UP) &&
+                     OInput->isStateDown(DIK_LCONTROL))
+            {
+                if (selectedCmd.index > 0)
+                {
+                    selectedCmd.selectBox->retain();
+                    selectedCmd.selectBox->remove();
+                    workingTexture->cmds.erase(workingTexture->cmds.begin() + selectedCmd.index);
+                    --selectedCmd.index;
+
+                    uiCmdStack->insertAt(selectedCmd.selectBox, selectedCmd.index);
+                    workingTexture->cmds.insert(workingTexture->cmds.begin() + selectedCmd.index, selectedCmd.cmd);
+
+                    selectedCmd.selectBox->release();
+
+                    workingTexture->bake();
+                }
             }
         }
     }
@@ -804,10 +857,40 @@ int MainVC::pickOnTexture(const Vector2& pos, int* out_downState)
     else if (dynamic_cast<sTextureCmdCIRCLE*>(cmd))
     {
         sTextureCmdCIRCLE* pCmd = (sTextureCmdCIRCLE*)cmd;
+        Vector2 p{(float)pCmd->x, (float)pCmd->y};
+        float dist = Vector2::DistanceSquared(p, pos);
+        float radius = (float)max<>(8, pCmd->radius);
+        if (dist <= radius * radius)
+        {
+            out_downState[0] = pCmd->x;
+            out_downState[1] = pCmd->y;
+            return 0;
+        }
+        else
+        {
+            out_downState[0] = pCmd->radius;
+            out_downState[1] = (int)sqrtf(dist);
+            return 1;
+        }
     }
     else if (dynamic_cast<sTextureCmdBEVEL_CIRCLE*>(cmd))
     {
         sTextureCmdBEVEL_CIRCLE* pCmd = (sTextureCmdBEVEL_CIRCLE*)cmd;
+        Vector2 p{(float)pCmd->x, (float)pCmd->y};
+        float dist = Vector2::DistanceSquared(p, pos);
+        float radius = (float)max<>(8, pCmd->radius);
+        if (dist < radius * radius)
+        {
+            out_downState[0] = pCmd->x;
+            out_downState[1] = pCmd->y;
+            return 0;
+        }
+        else
+        {
+            out_downState[0] = pCmd->radius;
+            out_downState[1] = (int)sqrtf(dist);
+            return 1;
+        }
     }
     else if (dynamic_cast<sTextureCmdLINE*>(cmd))
     {
@@ -866,7 +949,7 @@ int toCmdPos(int pos)
     return pos / 4 * 4;
 }
 
-void MainVC::updateTextureEdit(const Vector2& diff)
+void MainVC::updateTextureEdit(const Vector2& diff, const Vector2& mousePos)
 {
     auto cmd = getSelectedCmd().cmd;
     if (!cmd) return;
@@ -945,10 +1028,32 @@ void MainVC::updateTextureEdit(const Vector2& diff)
     else if (dynamic_cast<sTextureCmdCIRCLE*>(cmd))
     {
         sTextureCmdCIRCLE* pCmd = (sTextureCmdCIRCLE*)cmd;
+        if (dragId == 0)
+        {
+            pCmd->x = toCmdPos(downState[0] + (int)diff.x);
+            pCmd->y = toCmdPos(downState[1] + (int)diff.y);
+        }
+        else if (dragId == 1)
+        {
+            Vector2 p{(float)pCmd->x, (float)pCmd->y};
+            float dist = Vector2::Distance(p, mousePos);
+            pCmd->radius = downState[0] + ((int)dist - downState[1]);
+        }
     }
     else if (dynamic_cast<sTextureCmdBEVEL_CIRCLE*>(cmd))
     {
         sTextureCmdBEVEL_CIRCLE* pCmd = (sTextureCmdBEVEL_CIRCLE*)cmd;
+        if (dragId == 0)
+        {
+            pCmd->x = toCmdPos(downState[0] + (int)diff.x);
+            pCmd->y = toCmdPos(downState[1] + (int)diff.y);
+        }
+        else if (dragId == 1)
+        {
+            Vector2 p{(float)pCmd->x, (float)pCmd->y};
+            float dist = Vector2::Distance(p, mousePos);
+            pCmd->radius = downState[0] + ((int)dist - downState[1]);
+        }
     }
     else if (dynamic_cast<sTextureCmdLINE*>(cmd))
     {

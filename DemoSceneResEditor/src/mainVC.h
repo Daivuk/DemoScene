@@ -39,7 +39,7 @@ public:
     void updateColorPickerValues();
 
     int pickOnTexture(const Vector2& pos, int* out_downState);
-    void updateTextureEdit(const Vector2& diff);
+    void updateTextureEdit(const Vector2& diff, const Vector2& mousePos);
 
 public:
     UIContext uiContext;

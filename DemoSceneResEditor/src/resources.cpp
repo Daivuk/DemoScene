@@ -59,10 +59,12 @@ void sTexture::bake()
             else if (dynamic_cast<sTextureCmdCIRCLE*>(cmd))
             {
                 sTextureCmdCIRCLE* pCmd = (sTextureCmdCIRCLE*)cmd;
+                drawCircle(pCmd->x, pCmd->y, pCmd->radius, packColor(pCmd->color));
             }
             else if (dynamic_cast<sTextureCmdBEVEL_CIRCLE*>(cmd))
             {
                 sTextureCmdBEVEL_CIRCLE* pCmd = (sTextureCmdBEVEL_CIRCLE*)cmd;
+                drawCircle(pCmd->x, pCmd->y, pCmd->radius, packColor(pCmd->color), pCmd->bevel);
             }
             else if (dynamic_cast<sTextureCmdLINE*>(cmd))
             {
