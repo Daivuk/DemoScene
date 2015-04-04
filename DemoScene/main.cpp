@@ -32,10 +32,21 @@ void draw()
     // Draw 2D
     gfx_setup2d();
 
-    const float rect[] {64, 64, 128, 256};
-    spr_draw(res_textures[0].view, rect, GFX_WHITE);
-    //const float rect2[] {64 + 128 + 64, 64, 128, 256};
-    //spr_draw(res_textures[2].view, rect2, GFX_WHITE);
+#if _DEBUG
+    int x = 8;
+    int y = 8;
+    for (int i = 0; i < res_textureCount; ++i)
+    {
+        if (x + res_textures[i].w + 8 > RESOLUTION_W)
+        {
+            x = 8;
+            y += 256 + 8;
+        }
+        const float rect[] {(float)x, (float)y, (float)res_textures[i].w, (float)res_textures[i].h};
+        spr_draw(res_textures[i].view, rect, GFX_WHITE);
+        x += res_textures[i].w + 8;
+    }
+#endif
 
     // Flush and flip
     spr_flush();

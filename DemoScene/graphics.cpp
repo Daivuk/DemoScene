@@ -102,9 +102,6 @@ dt*=saturate(dot(normalize(h(-32,384,256)-wp),norm));\
 r di*dt*1.5;\
 }";
 
-#define RESOLUTION_W 1280
-#define RESOLUTION_H 720
-
 float gfxData[] 
 {
     // viewProj2D matrix

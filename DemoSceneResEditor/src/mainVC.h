@@ -71,6 +71,9 @@ public:
     Vector2 onDownMousePos;
     Vector2 lastDragDiff;
     bool bShowGrid = true;
+    OAnimf cmdStackOffset = 0.f;
+
+    int dataSize = 0;
 
     function<void(const Color&)> colorPickerCallback;
 };

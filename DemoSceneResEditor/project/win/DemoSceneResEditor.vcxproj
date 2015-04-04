@@ -14,7 +14,6 @@
     <ClCompile Include="..\..\src\main.cpp" />
     <ClCompile Include="..\..\src\mainVC.cpp" />
     <ClCompile Include="..\..\src\resources.cpp" />
-    <ClCompile Include="..\..\src\resTexture.cpp" />
     <ClCompile Include="..\..\src\styles.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -26,7 +25,6 @@
     <ClInclude Include="..\..\..\DemoScene\img_bake.h" />
     <ClInclude Include="..\..\src\mainVC.h" />
     <ClInclude Include="..\..\src\resources.h" />
-    <ClInclude Include="..\..\src\resTexture.h" />
     <ClInclude Include="..\..\src\styles.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">

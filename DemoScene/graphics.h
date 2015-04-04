@@ -2,6 +2,9 @@
 
 extern float gfxData[];
 
+#define RESOLUTION_W 1280
+#define RESOLUTION_H 720
+
 #define GFX_VIEWPROJ2D (gfxData)
 #define GFX_PROJ3D (gfxData + 34)
 #define GFX_IDENTITY (gfxData + 15)

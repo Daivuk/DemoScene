@@ -658,4 +658,9 @@ void createUIStyles(onut::UIContext* pContext)
             }
         }
     });
+
+    pContext->onClipping = [pContext](bool enableClipping, const onut::sUIRect& rect)
+    {
+        ORenderer->setScissor(enableClipping, onut::UI2Onut(rect));
+    };
 }

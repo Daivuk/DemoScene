@@ -130,6 +130,9 @@ struct sTexture
     int deserialize(uint8_t* pData);
 
     Texture* texture = nullptr;
+    Texture* texNormalMap = nullptr;
+    Texture* textMaterialMap = nullptr;
+
     int w = 256, h = 256;
     vector<sTextureCmd*> cmds;
     uint32_t* data = nullptr;

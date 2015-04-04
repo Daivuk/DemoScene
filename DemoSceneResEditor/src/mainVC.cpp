@@ -41,8 +41,6 @@ MainVC::MainVC()
     {
         auto state = pCheckBox->getState(uiContext);
         auto orect = UI2Onut(rect);
-        orect.z -= 4;
-        orect.w -= 4;
         switch (state)
         {
             case eUIState::HOVER:
@@ -57,13 +55,19 @@ MainVC::MainVC()
             OSB->drawRect(nullptr, orect, g_guideColor);
         }
         auto resT = (sTexture*)pCheckBox->pUserData;
-        orect.x += 2;
-        orect.y += 2;
-        orect.z -= 4;
-        orect.w -= 4;
-        OSB->drawRectWithUVs(OGetTexture("dottedLine.png"), orect, {0, 0, orect.z / 16, orect.w / 16}, g_toolBtnHoverColor);
+        orect = orect.Grow(-2);
         if (resT->texture)
         {
+            float ratio = resT->texture->getSizef().x / resT->texture->getSizef().y;
+            if (ratio > 1)
+            {
+                orect.w /= ratio;
+            }
+            else
+            {
+                orect.z *= ratio;
+            }
+            OSB->drawRectWithUVs(OGetTexture("dottedLine.png"), orect, {0, 0, orect.z / 16, orect.w / 16}, g_toolBtnHoverColor);
             OSB->drawRect(resT->texture, orect);
         }
     });
@@ -490,10 +494,10 @@ void MainVC::update()
         }
     }
 
-    // Layout commands
     if (uiTexture->isVisible)
     {
-        sUIVector2 pos = {0, 0};
+        // Layout commands
+        sUIVector2 pos = {0, cmdStackOffset.get()};
         for (auto& pChild : uiCmdStack->getChildren())
         {
             pChild->rect.position = pos;
@@ -514,6 +518,34 @@ void MainVC::update()
             }
         }
 
+        // Scroll
+        if (OInput->getStateValue(DIK_MOUSEZ) > 0)
+        {
+            auto curVal = cmdStackOffset.get();
+            cmdStackOffset.stop(true);
+            auto endVal = cmdStackOffset.get();
+            endVal += 50.f;
+            if (endVal > 0)
+            {
+                endVal = 0;
+            }
+            cmdStackOffset.start(curVal, endVal, .15f, OEaseOut);
+        }
+        else if (OInput->getStateValue(DIK_MOUSEZ) < 0)
+        {
+            auto curVal = cmdStackOffset.get();
+            cmdStackOffset.stop(true);
+            auto endVal = cmdStackOffset.get();
+            endVal -= 50.f;
+            auto stackH = uiCmdStack->getWorldRect(uiContext).size.y;
+            if (endVal < (float)workingTexture->cmds.size() * -50.f + stackH)
+            {
+                endVal = (float)workingTexture->cmds.size() * -50.f + stackH;
+            }
+            cmdStackOffset.start(curVal, endVal, .15f, OEaseOut);
+        }
+
+        // Actions on the selected cmd
         auto selectedCmd = getSelectedCmd();
         if (selectedCmd.cmd)
         {
@@ -1139,6 +1171,8 @@ void MainVC::load()
         data.push_back((uint8_t)b);
     }
     fic.close();
+    dataSize = (int)data.size();
+    uiScreen.getChild<UILabel>("lblDataSize")->textComponent.text = to_string(dataSize) + " bytes";
 
     // Deserialize
     for (size_t i = 4; i < data.size(); ++i)
@@ -1186,6 +1220,8 @@ void MainVC::save()
     // ... todo
 
     // Save the byte array
+    dataSize = (int)data.size();
+    uiScreen.getChild<UILabel>("lblDataSize")->textComponent.text = to_string(dataSize) + " bytes";
     ofstream fic("../../../DemoScene/res_data.h");
     for (auto b : data)
     {
