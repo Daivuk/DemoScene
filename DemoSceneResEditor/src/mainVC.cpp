@@ -881,11 +881,11 @@ void MainVC::showColorPicker(const res_palColor& color, function<void(const res_
             (float)c.y / 255.f,
             (float)c.z / 255.f,
             (float)c.w / 255.f};
-        rect.position.x += rect.size.x + 4;
-        if (rect.position.x + rect.size.x + 4 > contRect.size.x)
+        rect.position.x += rect.size.x;
+        if (rect.position.x + rect.size.x > contRect.size.x)
         {
             rect.position.x = 0;
-            rect.position.y += rect.size.y + 4;
+            rect.position.y += rect.size.y;
         }
         sample->onClick = [&](UIControl* pCtrl, const UIMouseEvent& e)
         {
