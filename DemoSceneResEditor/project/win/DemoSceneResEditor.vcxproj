@@ -11,6 +11,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\..\DemoScene\compress.cpp" />
     <ClCompile Include="..\..\..\DemoScene\img_bake.cpp" />
     <ClCompile Include="..\..\src\main.cpp" />
     <ClCompile Include="..\..\src\mainVC.cpp" />
@@ -23,6 +24,7 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\..\DemoScene\compress.h" />
     <ClInclude Include="..\..\..\DemoScene\img_bake.h" />
     <ClInclude Include="..\..\src\mainVC.h" />
     <ClInclude Include="..\..\src\resources.h" />

@@ -1,5 +1,6 @@
 #include "MainVC.h"
 #include "styles.h"
+#include "compress.h"
 
 using namespace std;
 
@@ -1226,17 +1227,19 @@ void MainVC::save()
     }
 
     // Compress
-    // ... todo
+    int compressedSize = 0;
+    auto* pCompressedData = compress(data.data(), (int)data.size(), compressedSize);
 
     // Save the byte array
-    dataSize = (int)data.size();
+    dataSize = compressedSize;
     uiScreen.getChild<UILabel>("lblDataSize")->textComponent.text = to_string(dataSize) + " bytes";
-    ofstream fic("../../../DemoScene/res_data.h");
-    for (auto b : data)
+    ofstream fic("../../../DemoScene/res_data2.h");
+    for (int i = 0; i < compressedSize; ++i)
     {
-        fic << (int)b << ",";
+        fic << (int)pCompressedData[i] << ",";
     }
     fic.close();
+    delete []pCompressedData;
 
     // Notify with a little animation
     uiSavedV.start({

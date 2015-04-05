@@ -6,11 +6,13 @@
     <ClCompile Include="..\..\src\mainVC.cpp" />
     <ClCompile Include="..\..\src\resources.cpp" />
     <ClCompile Include="..\..\..\DemoScene\img_bake.cpp" />
+    <ClCompile Include="..\..\..\DemoScene\compress.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\src\styles.h" />
     <ClInclude Include="..\..\src\mainVC.h" />
     <ClInclude Include="..\..\src\resources.h" />
     <ClInclude Include="..\..\..\DemoScene\img_bake.h" />
+    <ClInclude Include="..\..\..\DemoScene\compress.h" />
   </ItemGroup>
 </Project>

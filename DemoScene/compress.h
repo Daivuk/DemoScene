@@ -1,3 +1,7 @@
 #pragma once
+#include <cinttypes>
 
-const char* compress_decompressShader(const char* shader);
+uint8_t* decompress(uint8_t* srcData, int srcSize, int& outSize);
+#if EDITOR
+uint8_t* compress(uint8_t* srcData, int srcSize, int& outSize);
+#endif
