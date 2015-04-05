@@ -1130,8 +1130,6 @@ void MainVC::updateTextureEdit(const Vector2& diff, const Vector2& mousePos)
     workingTexture->bake();
 }
 
-#include <fstream>
-
 void MainVC::load()
 {
     vector<uint8_t> data;
@@ -1148,9 +1146,22 @@ void MainVC::load()
         data.push_back((uint8_t)b);
     }
     fic.close();
+
+    // Update our size label
     dataSize = (int)data.size();
     uiScreen.getChild<UILabel>("lblDataSize")->textComponent.text = to_string(dataSize) + " bytes";
 
+    // Decompress
+    int uncompressedSize;
+    auto pDecompressedData = decompress(data.data(), (int)data.size(), uncompressedSize);
+    data.clear();
+    for (int i = 0; i < uncompressedSize; ++i)
+    {
+        data.push_back(pDecompressedData[i]);
+    }
+    delete[] pDecompressedData;
+
+    // Load palette
     int colorCount = (int)data[4];
     for (int i = 0; i < colorCount; ++i)
     {
@@ -1233,7 +1244,7 @@ void MainVC::save()
     // Save the byte array
     dataSize = compressedSize;
     uiScreen.getChild<UILabel>("lblDataSize")->textComponent.text = to_string(dataSize) + " bytes";
-    ofstream fic("../../../DemoScene/res_data2.h");
+    ofstream fic("../../../DemoScene/res_data.h");
     for (int i = 0; i < compressedSize; ++i)
     {
         fic << (int)pCompressedData[i] << ",";

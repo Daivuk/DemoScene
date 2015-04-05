@@ -4,6 +4,7 @@
 #include "res.h"
 #include "mat.h"
 #include "img_bake.h"
+#include "compress.h"
 
 extern ID3D11Device* device;
 
@@ -261,7 +262,8 @@ void createImg(int dim)
     img.h = h;
 }
 
-uint8_t resData[] = {
+uint8_t* resData;
+uint8_t resDataCompressed[] = {
 #include "res_data.h"
  /*   3, // Texture count
     1, // Mesh count
@@ -340,6 +342,10 @@ uint32_t colorFromPalette(int id)
 
 void res_load()
 {
+    // Uncompress it first
+    int dataSize;
+    resData = decompress(resDataCompressed, sizeof(resDataCompressed), dataSize);
+
     res_textureCount = resData[0];
     res_meshCount = resData[1];
     res_modelCount = resData[2];
@@ -365,7 +371,7 @@ void res_load()
 
     mem_cpy(res_palette, resData + 5, res_colorCount * 4);
 
-    for (int i = 5 + res_colorCount * 4; i < sizeof(resData); ++i)
+    for (int i = 5 + res_colorCount * 4; i < dataSize; ++i)
     {
         switch (resData[i])
         {
