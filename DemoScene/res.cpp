@@ -250,8 +250,12 @@ void setupCamera(sCamera& out, float *pos, float* lookat, float* transform, floa
     res_currentCamera = &out;
 }
 
-void createImg(int w, int h)
+void createImg(int dim)
 {
+    int w = ((dim >> 5) & 0x07) + 3;
+    int h = ((dim >> 2) & 0x07) + 3;
+    w = pow(2, w);
+    h = pow(2, h);
     img.pData = (uint32_t*)mem_alloc(w * h * 4);
     img.w = w;
     img.h = h;
@@ -366,8 +370,8 @@ void res_load()
         switch (resData[i])
         {
             case RES_IMG:
-                createImg(1 << resData[i + 1], 1 << resData[i + 2]);
-                i += 2;
+                createImg(resData[i + 1]);
+                i += 1;
                 break;
             case RES_FILL:
                 fill(colorFromPalette(resData[i + 1]));

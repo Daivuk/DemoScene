@@ -14,9 +14,12 @@ extern vector<res_Color*>* allColors;
 void updatePalette()
 {
     res_palette.clear();
-    for (auto c : *allColors)
+    if (allColors)
     {
-        res_getColorId(*c);
+        for (auto c : *allColors)
+        {
+            res_getColorId(*c);
+        }
     }
 }
 
@@ -307,7 +310,7 @@ void hookColorPicker(UIControl* pCtrl, const std::string& childName, res_Color* 
         (float)pTarget->w / 255.f};
     colorPicker->onClick = [pCtrl, colorPicker, pTarget](UIControl* pCtrl, const UIMouseEvent& evt)
     {
-        pMainVC->showColorPicker(*pTarget, [pCtrl, colorPicker, pTarget](const res_Color& color){
+        pMainVC->showColorPicker(*pTarget, [pCtrl, colorPicker, pTarget](const res_palColor& color){
             *pTarget = color;
             colorPicker->color = sUIColor{
                 (float)color.x / 255.f,
@@ -757,7 +760,7 @@ void MainVC::buildUIForTexture()
     workingTexture->bake();
 }
 
-void MainVC::showColorPicker(const res_Color& color, function<void(const res_Color&)> callback)
+void MainVC::showColorPicker(const res_palColor& color, function<void(const res_palColor&)> callback)
 {
     colorPickerCallback = callback;
     uiColorPicker->isVisible = true;
@@ -795,7 +798,7 @@ void MainVC::showColorPicker(const res_Color& color, function<void(const res_Col
 
     uiColorPicker->getChild<UIButton>("btnOK")->onClick = [this, &color](UIControl* c, const UIMouseEvent& e)
     {
-        colorPickerCallback(res_Color{
+        colorPickerCallback(res_palColor{
             (uint8_t)colorPickerSliders[0],
             (uint8_t)colorPickerSliders[1],
             (uint8_t)colorPickerSliders[2],

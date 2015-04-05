@@ -67,6 +67,10 @@ sTexture::~sTexture()
 {
     if (data) delete[] data;
     if (texture) delete texture;
+    for (auto cmd : cmds)
+    {
+        delete cmd;
+    }
 }
 
 uint32_t packColor(const res_Color& color)
@@ -472,11 +476,27 @@ int findExpo(int texSize)
     return expo;
 }
 
+int imgDimToBits(int texSize)
+{
+    return findExpo(texSize) - 3;
+}
+
 void sTexture::serialize(vector<uint8_t>& data)
 {
     data.push_back(RES_IMG);
-    data.push_back(findExpo(w));
-    data.push_back(findExpo(h));
+
+    // For the width and height we only need to save
+    // those dimensions: 8, 16, 32, 64, 128, 256, 512, 1024
+    // This fits in 3 bits. So we can put both in 1 byte and it 
+    // leaves 2 bits for other flags to know if it has a normal
+    // map and/or a material map
+    // wwwhhhmn, width, height, material map, normal map
+    uint8_t dim = 0;
+    dim |= (texNormalMap ? 0x01 : 0x00);
+    dim |= (textMaterialMap ? 0x02 : 0x00);
+    dim |= (imgDimToBits(w) << 5) & 0xe0;
+    dim |= (imgDimToBits(h) << 2) & 0x1c;
+    data.push_back(dim);
     for (auto cmd : cmds)
     {
         cmd->serialize(data);
@@ -486,10 +506,13 @@ void sTexture::serialize(vector<uint8_t>& data)
 
 int sTexture::deserialize(uint8_t* pData)
 {
-    int size = 2;
+    int size = 1;
 
-    w = (int)std::pow<int, int>(2, (int)pData[0]);
-    h = (int)std::pow<int, int>(2, (int)pData[1]);
+    auto dim = pData[0];
+    w = (int)std::pow<int, int>(2, ((dim >> 5) & 0x07) + 3);
+    h = (int)std::pow<int, int>(2, ((dim >> 2) & 0x07) + 3);
+    bool hasNormalMap = dim & 0x01 ? true : false;
+    bool hasMaterialMap = dim & 0x02 ? true : false;
 
     while (pData[size] != RES_IMG_END)
     {
@@ -512,7 +535,7 @@ int sTexture::deserialize(uint8_t* pData)
         size++;
     }
 
-    return size;
+    return size + 1;
 }
 
 sTexture* sTexture::copy() const

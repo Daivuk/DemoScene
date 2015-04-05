@@ -32,7 +32,7 @@ public:
     // Generic state
     void closeAllViews();
     sSelectCmdInfo getSelectedCmd() const;
-    void showColorPicker(const res_Color& color, function<void(const res_Color&)> callback);
+    void showColorPicker(const res_palColor& color, function<void(const res_palColor&)> callback);
     void updateColorPickerValues();
 
     // Textures

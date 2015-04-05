@@ -61,11 +61,12 @@ void fill(uint32_t color)
 
 int pow(int val, int exp)
 {
-    while (exp--)
+    int ret = val;
+    while (--exp)
     {
-        val = val * val / 255;
+        ret *= val;
     }
-    return val;
+    return ret;
 }
 
 #define EDGE_SIZE 1
