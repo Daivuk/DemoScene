@@ -26,23 +26,27 @@ public:
     void update();
     void render();
 
-    void closeAllViews();
-    sSelectTextureInfo getSelectedTexture() const;
-    sSelectCmdInfo getSelectedCmd() const;
-    void repopulateCmds();
-    void insertCmd(sTextureCmd* pCmd, UIControl* pCtrl);
-    void addCmd(sTextureCmd* pCmd, UIControl* pCtrl);
-    void buildUIForTexture();
-    void hookCmd(sTextureCmd* pCmd, UIControl* pCtrl);
-
-    void showColorPicker(const Color& color, function<void(const Color&)> callback);
-    void updateColorPickerValues();
-
-    int pickOnTexture(const Vector2& pos, int* out_downState);
-    void updateTextureEdit(const Vector2& diff, const Vector2& mousePos);
-
     void load();
     void save();
+
+    // Generic state
+    void closeAllViews();
+    sSelectCmdInfo getSelectedCmd() const;
+    void showColorPicker(const res_Color& color, function<void(const res_Color&)> callback);
+    void updateColorPickerValues();
+
+    // Textures
+    sSelectTextureInfo getSelectedTexture() const;
+    void repopulateCmds();
+    void buildUIForTexture();
+
+    // Commands
+    void insertCmd(sTextureCmd* pCmd, UIControl* pCtrl);
+    void addCmd(sTextureCmd* pCmd, UIControl* pCtrl);
+    void hookCmd(sTextureCmd* pCmd, UIControl* pCtrl);
+    int pickOnTexture(const Vector2& pos, int* out_downState);
+    void updateTextureEdit(const Vector2& diff, const Vector2& mousePos);
+    void shiftTextureReferences(int index, int inc);
 
 public:
     UIContext uiContext;
@@ -54,6 +58,8 @@ public:
     UIControl* uiInspectorTextures;
     UIControl* uiInspectorTexture;
     UIControl* uiColorPicker;
+    UIControl* uiColorPickerPreviousContainer;
+    UIControl* uiColorPickerPreviousSample;
 
     sTexture* workingTexture;
 
@@ -75,5 +81,5 @@ public:
 
     int dataSize = 0;
 
-    function<void(const Color&)> colorPickerCallback;
+    function<void(const res_Color&)> colorPickerCallback;
 };

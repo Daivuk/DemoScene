@@ -86,7 +86,8 @@ void createUIStyles(onut::UIContext* pContext)
                 break;
         }
 
-        OSB->drawRect(nullptr, rectColor, {color.r, color.g, color.b, color.a});
+        OSB->drawRectWithUVs(OGetTexture("dottedLine.png"), rectColor, {0, 0, rectColor.z / 8, rectColor.w / 8}, g_cursorColor);
+        OSB->drawRect(nullptr, rectColor, Color{color.r * color.a, color.g * color.a, color.b * color.a, color.a});
     });
 
     pContext->addStyle<onut::UIPanel>("guide", [](const onut::UIPanel* pPanel, const onut::sUIRect& rect)

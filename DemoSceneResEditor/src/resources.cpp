@@ -1,6 +1,67 @@
 #include "resources.h"
 
 vector<sTexture*> res_textures;
+vector<res_palColor> res_palette;
+
+res_palColor::res_palColor(uint8_t _x, uint8_t _y, uint8_t _z, uint8_t _w)
+    : x(_x), y(_y), z(_z), w(_w)
+{
+}
+
+res_palColor::res_palColor(const res_Color& c)
+    : x(c.x), y(c.y), z(c.z), w(c.w)
+{
+}
+
+int res_getColorId(const res_Color& in_color)
+{
+    int id = 0;
+    for (auto& color : res_palette)
+    {
+        if (color.x == in_color.x &&
+            color.y == in_color.y &&
+            color.z == in_color.z &&
+            color.w == in_color.w) return id;
+        ++id;
+    }
+    // We add a new color.
+    res_palette.push_back(in_color);
+    return (int)(res_palette.size() - 1);
+}
+
+vector<res_Color*>* allColors = nullptr;
+
+res_Color::res_Color()
+{
+    if (!allColors) allColors = new vector<res_Color*>();
+    allColors->push_back(this);
+}
+
+res_Color::res_Color(uint8_t _x, uint8_t _y, uint8_t _z, uint8_t _w)
+    : x(_x), y(_y), z(_z), w(_w)
+{
+    if (!allColors) allColors = new vector<res_Color*>();
+    allColors->push_back(this);
+}
+
+res_Color::res_Color(const res_palColor& c)
+    : x(c.x), y(c.y), z(c.z), w(c.w)
+{
+    if (!allColors) allColors = new vector<res_Color*>();
+    allColors->push_back(this);
+}
+
+res_Color::~res_Color()
+{
+    for (auto it = allColors->begin(); it != allColors->end(); ++it)
+    {
+        if (*it == this)
+        {
+            allColors->erase(it);
+            break;
+        }
+    }
+}
 
 sTexture::~sTexture()
 {
@@ -8,13 +69,13 @@ sTexture::~sTexture()
     if (texture) delete texture;
 }
 
-uint32_t packColor(const Color& color)
+uint32_t packColor(const res_Color& color)
 {
     return
-        (((int)(color.x * 255.f)) & 0xff) |
-        (((int)(color.y * 255.f) << 8) & 0xff00) |
-        (((int)(color.z * 255.f) << 16) & 0xff0000) |
-        (((int)(color.w * 255.f) << 24) & 0xff000000);
+         ((int)color.x & 0xff) |
+        (((int)color.y << 8) & 0xff00) |
+        (((int)color.z << 16) & 0xff0000) |
+        (((int)color.w << 24) & 0xff000000);
 }
 
 void sTexture::bake()
@@ -199,31 +260,20 @@ uint8_t packPos(int pos)
 void sTextureCmdFILL::serialize(vector<uint8_t>& data)
 {
     data.push_back(RES_FILL);
-
-    data.push_back((uint8_t)(color.x * 255.f));
-    data.push_back((uint8_t)(color.y * 255.f));
-    data.push_back((uint8_t)(color.z * 255.f));
-    data.push_back((uint8_t)(color.w * 255.f));
+    data.push_back((uint8_t)res_getColorId(color));
 }
 
 int sTextureCmdFILL::deserialize(uint8_t* pData)
 {
-    color.x = (float)pData[0] / 255.f;
-    color.y = (float)pData[1] / 255.f;
-    color.z = (float)pData[2] / 255.f;
-    color.w = (float)pData[3] / 255.f;
+    color = res_palette[pData[0]];
 
-    return 4;
+    return 1;
 }
 
 void sTextureCmdRECT::serialize(vector<uint8_t>& data)
 {
     data.push_back(RES_RECT);
-
-    data.push_back((uint8_t)(color.x * 255.f));
-    data.push_back((uint8_t)(color.y * 255.f));
-    data.push_back((uint8_t)(color.z * 255.f));
-    data.push_back((uint8_t)(color.w * 255.f));
+    data.push_back((uint8_t)res_getColorId(color));
 
     data.push_back(packPos(x1));
     data.push_back(packPos(y1));
@@ -233,27 +283,20 @@ void sTextureCmdRECT::serialize(vector<uint8_t>& data)
 
 int sTextureCmdRECT::deserialize(uint8_t* pData)
 {
-    color.x = (float)pData[0] / 255.f;
-    color.y = (float)pData[1] / 255.f;
-    color.z = (float)pData[2] / 255.f;
-    color.w = (float)pData[3] / 255.f;
+    color = res_palette[pData[0]];
 
-    x1 = unpackPos(pData[4]);
-    y1 = unpackPos(pData[5]);
-    x2 = unpackPos(pData[6]);
-    y2 = unpackPos(pData[7]);
+    x1 = unpackPos(pData[1]);
+    y1 = unpackPos(pData[2]);
+    x2 = unpackPos(pData[3]);
+    y2 = unpackPos(pData[4]);
 
-    return 8;
+    return 5;
 }
 
 void sTextureCmdBEVEL::serialize(vector<uint8_t>& data)
 {
     data.push_back(RES_BEVEL);
-
-    data.push_back((uint8_t)(color.x * 255.f));
-    data.push_back((uint8_t)(color.y * 255.f));
-    data.push_back((uint8_t)(color.z * 255.f));
-    data.push_back((uint8_t)(color.w * 255.f));
+    data.push_back((uint8_t)res_getColorId(color));
 
     data.push_back(packPos(x1));
     data.push_back(packPos(y1));
@@ -265,29 +308,22 @@ void sTextureCmdBEVEL::serialize(vector<uint8_t>& data)
 
 int sTextureCmdBEVEL::deserialize(uint8_t* pData)
 {
-    color.x = (float)pData[0] / 255.f;
-    color.y = (float)pData[1] / 255.f;
-    color.z = (float)pData[2] / 255.f;
-    color.w = (float)pData[3] / 255.f;
+    color = res_palette[pData[0]];
 
-    x1 = unpackPos(pData[4]);
-    y1 = unpackPos(pData[5]);
-    x2 = unpackPos(pData[6]);
-    y2 = unpackPos(pData[7]);
+    x1 = unpackPos(pData[1]);
+    y1 = unpackPos(pData[2]);
+    x2 = unpackPos(pData[3]);
+    y2 = unpackPos(pData[4]);
 
-    bevel = (int)pData[8];
+    bevel = (int)pData[5];
 
-    return 9;
+    return 6;
 }
 
 void sTextureCmdCIRCLE::serialize(vector<uint8_t>& data)
 {
     data.push_back(RES_CIRCLE);
-
-    data.push_back((uint8_t)(color.x * 255.f));
-    data.push_back((uint8_t)(color.y * 255.f));
-    data.push_back((uint8_t)(color.z * 255.f));
-    data.push_back((uint8_t)(color.w * 255.f));
+    data.push_back((uint8_t)res_getColorId(color));
 
     data.push_back(packPos(x));
     data.push_back(packPos(y));
@@ -297,27 +333,20 @@ void sTextureCmdCIRCLE::serialize(vector<uint8_t>& data)
 
 int sTextureCmdCIRCLE::deserialize(uint8_t* pData)
 {
-    color.x = (float)pData[0] / 255.f;
-    color.y = (float)pData[1] / 255.f;
-    color.z = (float)pData[2] / 255.f;
-    color.w = (float)pData[3] / 255.f;
+    color = res_palette[pData[0]];
 
-    x = unpackPos(pData[4]);
-    y = unpackPos(pData[5]);
+    x = unpackPos(pData[1]);
+    y = unpackPos(pData[2]);
 
-    radius = (int)pData[6];
+    radius = (int)pData[3];
 
-    return 7;
+    return 4;
 }
 
 void sTextureCmdBEVEL_CIRCLE::serialize(vector<uint8_t>& data)
 {
     data.push_back(RES_BEVEL_CIRCLE);
-
-    data.push_back((uint8_t)(color.x * 255.f));
-    data.push_back((uint8_t)(color.y * 255.f));
-    data.push_back((uint8_t)(color.z * 255.f));
-    data.push_back((uint8_t)(color.w * 255.f));
+    data.push_back((uint8_t)res_getColorId(color));
 
     data.push_back(packPos(x));
     data.push_back(packPos(y));
@@ -328,28 +357,21 @@ void sTextureCmdBEVEL_CIRCLE::serialize(vector<uint8_t>& data)
 
 int sTextureCmdBEVEL_CIRCLE::deserialize(uint8_t* pData)
 {
-    color.x = (float)pData[0] / 255.f;
-    color.y = (float)pData[1] / 255.f;
-    color.z = (float)pData[2] / 255.f;
-    color.w = (float)pData[3] / 255.f;
+    color = res_palette[pData[0]];
 
-    x = unpackPos(pData[4]);
-    y = unpackPos(pData[5]);
+    x = unpackPos(pData[1]);
+    y = unpackPos(pData[2]);
 
-    radius = (int)pData[6];
-    bevel = (int)pData[7];
+    radius = (int)pData[3];
+    bevel = (int)pData[4];
 
-    return 8;
+    return 5;
 }
 
 void sTextureCmdLINE::serialize(vector<uint8_t>& data)
 {
     data.push_back(RES_LINE);
-
-    data.push_back((uint8_t)(color.x * 255.f));
-    data.push_back((uint8_t)(color.y * 255.f));
-    data.push_back((uint8_t)(color.z * 255.f));
-    data.push_back((uint8_t)(color.w * 255.f));
+    data.push_back((uint8_t)res_getColorId(color));
 
     data.push_back(packPos(x1));
     data.push_back(packPos(y1));
@@ -361,34 +383,23 @@ void sTextureCmdLINE::serialize(vector<uint8_t>& data)
 
 int sTextureCmdLINE::deserialize(uint8_t* pData)
 {
-    color.x = (float)pData[0] / 255.f;
-    color.y = (float)pData[1] / 255.f;
-    color.z = (float)pData[2] / 255.f;
-    color.w = (float)pData[3] / 255.f;
+    color = res_palette[pData[0]];
 
-    x1 = unpackPos(pData[4]);
-    y1 = unpackPos(pData[5]);
-    x2 = unpackPos(pData[6]);
-    y2 = unpackPos(pData[7]);
+    x1 = unpackPos(pData[1]);
+    y1 = unpackPos(pData[2]);
+    x2 = unpackPos(pData[3]);
+    y2 = unpackPos(pData[4]);
 
-    size = (int)pData[8];
+    size = (int)pData[5];
 
-    return 9;
+    return 6;
 }
 
 void sTextureCmdGRADIENT::serialize(vector<uint8_t>& data)
 {
     data.push_back(RES_GRADIENT);
-
-    data.push_back((uint8_t)(color1.x * 255.f));
-    data.push_back((uint8_t)(color1.y * 255.f));
-    data.push_back((uint8_t)(color1.z * 255.f));
-    data.push_back((uint8_t)(color1.w * 255.f));
-
-    data.push_back((uint8_t)(color2.x * 255.f));
-    data.push_back((uint8_t)(color2.y * 255.f));
-    data.push_back((uint8_t)(color2.z * 255.f));
-    data.push_back((uint8_t)(color2.w * 255.f));
+    data.push_back((uint8_t)res_getColorId(color1));
+    data.push_back((uint8_t)res_getColorId(color2));
 
     data.push_back(packPos(x1));
     data.push_back(packPos(y1));
@@ -400,24 +411,17 @@ void sTextureCmdGRADIENT::serialize(vector<uint8_t>& data)
 
 int sTextureCmdGRADIENT::deserialize(uint8_t* pData)
 {
-    color1.x = (float)pData[0] / 255.f;
-    color1.y = (float)pData[1] / 255.f;
-    color1.z = (float)pData[2] / 255.f;
-    color1.w = (float)pData[3] / 255.f;
+    color1 = res_palette[pData[0]];
+    color2 = res_palette[pData[1]];
 
-    color2.x = (float)pData[4] / 255.f;
-    color2.y = (float)pData[5] / 255.f;
-    color2.z = (float)pData[6] / 255.f;
-    color2.w = (float)pData[7] / 255.f;
+    x1 = unpackPos(pData[2]);
+    y1 = unpackPos(pData[3]);
+    x2 = unpackPos(pData[4]);
+    y2 = unpackPos(pData[5]);
 
-    x1 = unpackPos(pData[8]);
-    y1 = unpackPos(pData[9]);
-    x2 = unpackPos(pData[10]);
-    y2 = unpackPos(pData[11]);
+    bVertical = pData[6] ? true : false;
 
-    bVertical = pData[12] ? true : false;
-
-    return 13;
+    return 7;
 }
 
 void sTextureCmdNORMAL_MAP::serialize(vector<uint8_t>& data)
@@ -433,11 +437,7 @@ int sTextureCmdNORMAL_MAP::deserialize(uint8_t* pData)
 void sTextureCmdIMAGE::serialize(vector<uint8_t>& data)
 {
     data.push_back(RES_IMAGE);
-
-    data.push_back((uint8_t)(color.x * 255.f));
-    data.push_back((uint8_t)(color.y * 255.f));
-    data.push_back((uint8_t)(color.z * 255.f));
-    data.push_back((uint8_t)(color.w * 255.f));
+    data.push_back((uint8_t)res_getColorId(color));
 
     data.push_back(packPos(x1));
     data.push_back(packPos(y1));
@@ -449,19 +449,16 @@ void sTextureCmdIMAGE::serialize(vector<uint8_t>& data)
 
 int sTextureCmdIMAGE::deserialize(uint8_t* pData)
 {
-    color.x = (float)pData[0] / 255.f;
-    color.y = (float)pData[1] / 255.f;
-    color.z = (float)pData[2] / 255.f;
-    color.w = (float)pData[3] / 255.f;
+    color = res_palette[pData[0]];
 
-    x1 = unpackPos(pData[4]);
-    y1 = unpackPos(pData[5]);
-    x2 = unpackPos(pData[6]);
-    y2 = unpackPos(pData[7]);
+    x1 = unpackPos(pData[1]);
+    y1 = unpackPos(pData[2]);
+    x2 = unpackPos(pData[3]);
+    y2 = unpackPos(pData[4]);
 
-    imgId = (int)pData[8];
+    imgId = (int)pData[5];
 
-    return 9;
+    return 6;
 }
 
 int findExpo(int texSize)

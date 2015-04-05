@@ -15,11 +15,13 @@ sTexture* res_textures;
 sMesh* res_meshes;
 sModel* res_models;
 sCamera* res_cameras;
+uint8_t* res_palette;
 
 int res_textureCount;
 int res_meshCount;
 int res_modelCount;
 int res_cameraCount;
+int res_colorCount;
 
 sCamera* res_currentCamera;
 
@@ -327,30 +329,39 @@ uint8_t resData[] = {
     RES_CAMERA, 32, 0, 0, 0, 32, 0, 0, 0, 64, 0, 16, 0,*/
 };
 
+uint32_t colorFromPalette(int id)
+{
+    return *(uint32_t*)(res_palette + (id * 4));
+}
+
 void res_load()
 {
     res_textureCount = resData[0];
     res_meshCount = resData[1];
     res_modelCount = resData[2];
     res_cameraCount = resData[3];
+    res_colorCount = resData[4];
 
     int curTexture = 0;
     int curMesh = 0;
     int curModel = 0;
     int curCamera = 0;
 
+    // Allocate
     res_textures = (sTexture*)mem_alloc(sizeof(sTexture) * res_textureCount);
     res_meshes = (sMesh*)mem_alloc(sizeof(sMesh) * res_meshCount);
     res_models = (sModel*)mem_alloc(sizeof(sModel) * res_modelCount);
     res_cameras = (sCamera*)mem_alloc(sizeof(sCamera) * res_cameraCount);
-
+    res_palette = (uint8_t*)mem_alloc(res_colorCount * 4);
     transforms = (float*)mem_alloc(sizeof(float) * (
                                    res_modelCount * 16 + 
                                    res_cameraCount * (3 + 3 + 16)
                                    ));
     float *pTransforms = transforms;
 
-    for (int i = 4; i < sizeof(resData); ++i)
+    mem_cpy(res_palette, resData + 5, res_colorCount * 4);
+
+    for (int i = 5 + res_colorCount * 4; i < sizeof(resData); ++i)
     {
         switch (resData[i])
         {
@@ -359,49 +370,49 @@ void res_load()
                 i += 2;
                 break;
             case RES_FILL:
-                fill(*(uint32_t*)(resData + i + 1));
-                i += 4;
+                fill(colorFromPalette(resData[i + 1]));
+                i += 1;
                 break;
             case RES_RECT:
-                fillRect(*(uint32_t*)(resData + i + 1),
-                         unpackPos(resData[i + 5]),
-                         unpackPos(resData[i + 6]),
-                         unpackPos(resData[i + 7]),
-                         unpackPos(resData[i + 8]));
-                i += 8;
+                fillRect(colorFromPalette(resData[i + 1]),
+                         unpackPos(resData[i + 2]),
+                         unpackPos(resData[i + 3]),
+                         unpackPos(resData[i + 4]),
+                         unpackPos(resData[i + 5]));
+                i += 5;
                 break;
             case RES_BEVEL:
-                bevel(*(uint32_t*)(resData + i + 1),
-                         resData[i + 9],
-                         unpackPos(resData[i + 5]),
-                         unpackPos(resData[i + 6]),
-                         unpackPos(resData[i + 7]),
-                         unpackPos(resData[i + 8]));
-                i += 9;
+                bevel(colorFromPalette(resData[i + 1]),
+                         resData[i + 6],
+                         unpackPos(resData[i + 2]),
+                         unpackPos(resData[i + 3]),
+                         unpackPos(resData[i + 4]),
+                         unpackPos(resData[i + 5]));
+                i += 6;
                 break;
             case RES_CIRCLE:
-                drawCircle(unpackPos(resData[i + 5]),
-                           unpackPos(resData[i + 6]),
-                           resData[i + 7], 
-                           *(uint32_t*)(resData + i + 1));
-                i += 7;
+                drawCircle(unpackPos(resData[i + 2]),
+                           unpackPos(resData[i + 3]),
+                           resData[i + 4], 
+                           colorFromPalette(resData[i + 1]));
+                i += 4;
                 break;
             case RES_BEVEL_CIRCLE:
-                drawCircle(unpackPos(resData[i + 5]),
-                           unpackPos(resData[i + 6]),
-                           resData[i + 7], 
-                           *(uint32_t*)(resData + i + 1),
-                           (int)(resData[i + 8]));
-                i += 8;
+                drawCircle(unpackPos(resData[i + 2]),
+                           unpackPos(resData[i + 3]),
+                           resData[i + 4], 
+                           colorFromPalette(resData[i + 1]),
+                           (int)(resData[i + 5]));
+                i += 5;
                 break;
             case RES_LINE:
-                drawLine(unpackPos(resData[i + 5]),
-                         unpackPos(resData[i + 6]),
-                         unpackPos(resData[i + 7]),
-                         unpackPos(resData[i + 8]),
-                         *(uint32_t*)(resData + i + 1),
-                         resData[i + 9]);
-                i += 9;
+                drawLine(unpackPos(resData[i + 2]),
+                         unpackPos(resData[i + 3]),
+                         unpackPos(resData[i + 4]),
+                         unpackPos(resData[i + 5]),
+                         colorFromPalette(resData[i + 1]),
+                         resData[i + 6]);
+                i += 6;
                 break;
             case RES_IMG_END:
                 textureFromData(res_textures[curTexture++], (uint8_t*)img.pData, img.w, img.h);
@@ -410,15 +421,15 @@ void res_load()
                 normalMap();
                 break;
             case RES_IMAGE:
-                putImg(*(uint32_t*)(resData + i + 1),
+                putImg(colorFromPalette(resData[i + 1]),
+                       unpackPos(resData[i + 2]),
+                       unpackPos(resData[i + 3]),
+                       unpackPos(resData[i + 4]),
                        unpackPos(resData[i + 5]),
-                       unpackPos(resData[i + 6]),
-                       unpackPos(resData[i + 7]),
-                       unpackPos(resData[i + 8]),
-                       res_textures[resData[i + 9]].data,
-                       res_textures[resData[i + 9]].w,
-                       res_textures[resData[i + 9]].h);
-                i += 9;
+                       res_textures[resData[i + 6]].data,
+                       res_textures[resData[i + 6]].w,
+                       res_textures[resData[i + 6]].h);
+                i += 6;
                 break;
 
             case RES_MESH:

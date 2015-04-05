@@ -4,6 +4,27 @@
 using namespace std;
 using namespace onut;
 
+struct res_palColor;
+
+struct res_Color
+{
+    uint8_t x, y, z, w;
+    res_Color();
+    res_Color(uint8_t _x, uint8_t _y, uint8_t _z, uint8_t _w);
+    res_Color(const res_palColor& c);
+    ~res_Color();
+};
+
+struct res_palColor
+{
+    uint8_t x, y, z, w;
+    res_palColor() {}
+    res_palColor(uint8_t _x, uint8_t _y, uint8_t _z, uint8_t _w);
+    res_palColor(const res_Color& c);
+};
+
+int res_getColorId(const res_Color& in_color);
+
 struct sTextureCmd
 {
     virtual ~sTextureCmd() {}
@@ -16,7 +37,7 @@ struct sTextureCmd
 
 struct sTextureCmdFILL : public sTextureCmd
 {
-    Color color = Color::White;
+    res_Color color = {255, 255, 255, 255};
     sTextureCmd* copy() override;
     eRES_CMD getType() override { return RES_FILL; }
     void serialize(vector<uint8_t>& data) override;
@@ -25,7 +46,7 @@ struct sTextureCmdFILL : public sTextureCmd
 
 struct sTextureCmdRECT : public sTextureCmd
 {
-    Color color = Color::White;
+    res_Color color = {255, 255, 255, 255};
     int x1 = 0, y1 = 0, x2 = 32, y2 = 32;
     sTextureCmd* copy() override;
     eRES_CMD getType() override { return RES_RECT; }
@@ -35,7 +56,7 @@ struct sTextureCmdRECT : public sTextureCmd
 
 struct sTextureCmdBEVEL : public sTextureCmd
 {
-    Color color = Color::Black;
+    res_Color color = {0, 0, 0, 255};
     int x1 = 0, y1 = 0, x2 = 32, y2 = 32;
     int bevel = 5;
     sTextureCmd* copy() override;
@@ -46,7 +67,7 @@ struct sTextureCmdBEVEL : public sTextureCmd
 
 struct sTextureCmdCIRCLE : public sTextureCmd
 {
-    Color color = Color::White;
+    res_Color color = {255, 255, 255, 255};
     int x = 0, y = 0;
     int radius = 20;
     sTextureCmd* copy() override;
@@ -57,7 +78,7 @@ struct sTextureCmdCIRCLE : public sTextureCmd
 
 struct sTextureCmdBEVEL_CIRCLE : public sTextureCmd
 {
-    Color color = Color::White;
+    res_Color color = {255, 255, 255, 255};
     int x = 0, y = 0;
     int radius = 20;
     int bevel = 3;
@@ -69,7 +90,7 @@ struct sTextureCmdBEVEL_CIRCLE : public sTextureCmd
 
 struct sTextureCmdLINE : public sTextureCmd
 {
-    Color color = Color::White;
+    res_Color color = {255, 255, 255, 255};
     int x1 = 8, y1 = 8, x2 = 48, y2 = 8;
     int size = 3;
     sTextureCmd* copy() override;
@@ -80,7 +101,7 @@ struct sTextureCmdLINE : public sTextureCmd
 
 struct sTextureCmdGRADIENT : public sTextureCmd
 {
-    Color color1 = Color::White, color2 = Color::Black;
+    res_Color color1 = {255, 255, 255, 255}, color2 = {0, 0, 0, 255};
     int x1 = 0, y1 = 0, x2 = 32, y2 = 32;
     bool bVertical = false;
     sTextureCmd* copy() override;
@@ -99,7 +120,7 @@ struct sTextureCmdNORMAL_MAP : public sTextureCmd
 
 struct sTextureCmdIMAGE : public sTextureCmd
 {
-    Color color = Color::White;
+    res_Color color = {255, 255, 255, 255};
     int x1 = 0, y1 = 0, x2 = 32, y2 = 32;
     int imgId = 0;
     sTextureCmd* copy() override;
@@ -126,3 +147,4 @@ struct sTexture
 };
 
 extern vector<sTexture*> res_textures;
+extern vector<res_palColor> res_palette;

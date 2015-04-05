@@ -37,6 +37,7 @@ extern sTexture* res_textures;
 extern sMesh* res_meshes;
 extern sModel* res_models;
 extern sCamera* res_cameras;
+extern uint8_t* res_palette;
 
 extern int res_textureCount;
 extern int res_meshCount;
