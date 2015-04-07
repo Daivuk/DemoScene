@@ -323,13 +323,19 @@ void hookColorPicker(UIControl* pCtrl, const std::string& childName, res_Color* 
     };
 }
 
-void hookInteger(UIControl* pCtrl, const std::string& childName, int* pTarget)
+void hookInteger(UIControl* pCtrl, const std::string& childName, int* pTarget, int _min, int _max)
 {
     auto size = pCtrl->getChild<UITextBox>(childName);
     size->setInt(*pTarget);
     size->onTextChanged = [=](UITextBox* pCtrl, const UITextBoxEvent& evt)
     {
-        *pTarget = pCtrl->getInt();
+        int val = pCtrl->getInt();
+        int correctedVal = clamp(val, _min, _max);
+        if (val != correctedVal)
+        {
+            pCtrl->setInt(correctedVal);
+        }
+        *pTarget = val;
         pMainVC->workingTexture->bake();
     };
 }
@@ -350,7 +356,7 @@ void MainVC::hookCmd(sTextureCmd* cmd, UIControl* pCtrl)
     {
         auto pCmd = (sTextureCmdBEVEL*)cmd;
         hookColorPicker(pCtrl, "color", &pCmd->color);
-        hookInteger(pCtrl, "txtBevel", &pCmd->bevel);
+        hookInteger(pCtrl, "txtBevel", &pCmd->bevel, 1, 64);
     }
     else if (dynamic_cast<sTextureCmdCIRCLE*>(cmd))
     {
@@ -361,13 +367,13 @@ void MainVC::hookCmd(sTextureCmd* cmd, UIControl* pCtrl)
     {
         auto pCmd = (sTextureCmdBEVEL_CIRCLE*)cmd;
         hookColorPicker(pCtrl, "color", &pCmd->color);
-        hookInteger(pCtrl, "txtBevel", &pCmd->bevel);
+        hookInteger(pCtrl, "txtBevel", &pCmd->bevel, 1, 64);
     }
     else if (dynamic_cast<sTextureCmdLINE*>(cmd))
     {
         auto pCmd = (sTextureCmdLINE*)cmd;
         hookColorPicker(pCtrl, "color", &pCmd->color);
-        hookInteger(pCtrl, "txtSize", &pCmd->size);
+        hookInteger(pCtrl, "txtSize", &pCmd->size, 1, 64);
     }
     else if (dynamic_cast<sTextureCmdNORMAL_MAP*>(cmd))
     {
@@ -383,7 +389,7 @@ void MainVC::hookCmd(sTextureCmd* cmd, UIControl* pCtrl)
     {
         auto pCmd = (sTextureCmdIMAGE*)cmd;
         hookColorPicker(pCtrl, "color", &pCmd->color);
-        hookInteger(pCtrl, "txtBevel", &pCmd->imgId);
+        hookInteger(pCtrl, "txtBevel", &pCmd->imgId, 0, 255);
     }
 }
 
@@ -1146,6 +1152,7 @@ void MainVC::load()
         data.push_back((uint8_t)b);
     }
     fic.close();
+    if (data.empty()) return;
 
     // Update our size label
     dataSize = (int)data.size();
@@ -1161,27 +1168,41 @@ void MainVC::load()
     }
     delete[] pDecompressedData;
 
+    readData = data.data();
+    readPos = 0;
+
     // Load palette
-    int colorCount = (int)data[4];
+    readBits(8);
+    readBits(8);
+    readBits(8);
+    readBits(8);
+    int colorCount = readBits(8);
     for (int i = 0; i < colorCount; ++i)
     {
-        res_palette.push_back({
-        data[5 + i * 4 + 0],
-        data[5 + i * 4 + 1],
-        data[5 + i * 4 + 2],
-        data[5 + i * 4 + 3]});
+        res_palColor color;
+        color.x = (uint8_t)readBits(8);
+        color.y = (uint8_t)readBits(8);
+        color.z = (uint8_t)readBits(8);
+        color.w = (uint8_t)readBits(8);
+        res_palette.push_back(color);
     }
 
     // Deserialize
-    for (size_t i = 5 + colorCount * 4; i < data.size(); ++i)
+    bool bDone = false;
+    while (!bDone)
     {
-        auto b = data[i];
+        auto b = readBits(8);
         switch (b)
         {
+            case RES_END:
+            {
+                bDone = true;
+                break;
+            }
             case RES_IMG:
             {
                 auto pTexture = new sTexture();
-                i += pTexture->deserialize(data.data() + i + 1);
+                pTexture->deserialize();
                 pTexture->bake();
 
                 auto pSelectBox = new UICheckBox();
@@ -1213,31 +1234,43 @@ void MainVC::load()
 
 void MainVC::save()
 {
-    vector<uint8_t> data;
+    compressedData.clear();
+    writePos = 0;
 
-    data.push_back((uint8_t)res_textures.size()); // Texture count
-    data.push_back(0); // Mesh count
-    data.push_back(0); // Model count
-    data.push_back(0); // Camera count
+    write((int)res_textures.size(), 8);
+    write(0, 8);
+    write(0, 8);
+    write(0, 8);
 
     // Palette
     updatePalette();
-    data.push_back((uint8_t)res_palette.size()); // Color count
+    write((int)res_palette.size(), 8);
     for (auto& color : res_palette)
     {
-        data.push_back(color.x);
-        data.push_back(color.y);
-        data.push_back(color.z);
-        data.push_back(color.w);
+        write((int)color.x, 8);
+        write((int)color.y, 8);
+        write((int)color.z, 8);
+        write((int)color.w, 8);
     }
 
     // Serialize textures
     for (auto texture : res_textures)
     {
-        texture->serialize(data);
+        texture->serialize();
+    }
+
+    // End marker
+    write(RES_END, 8);
+
+    // Write padding at the end
+    auto padding = 8 - writePos % 8;
+    if (padding)
+    {
+        write(0, padding);
     }
 
     // Compress
+    vector<uint8_t> data = compressedData;
     int compressedSize = 0;
     auto* pCompressedData = compress(data.data(), (int)data.size(), compressedSize);
 

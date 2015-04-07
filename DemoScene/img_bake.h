@@ -33,6 +33,7 @@ enum eRES_CMD : uint8_t
     RES_AMBIENT,
 
     RES_IMAGE,
+    RES_END,
 };
 
 struct sImgContext

@@ -16,6 +16,7 @@ struct sHuffNode
 
 uint8_t* readData;
 int readPos;
+int readSize;
 
 int readBits(int count)
 {
@@ -47,6 +48,7 @@ uint8_t* decompress(uint8_t* srcData, int srcSize, int& outSize)
     readData = srcData;
 
     int sizeUncompressed = readBits(32);
+    readSize = sizeUncompressed * 8;
 
     // Build the huffman tree
     int byteCount = readBits(8) + 1;
@@ -110,7 +112,6 @@ uint8_t* decompress(uint8_t* srcData, int srcSize, int& outSize)
 }
 
 #if EDITOR
-#include <vector>
 #include <algorithm>
 #include <queue>
 #include <map>
@@ -250,6 +251,7 @@ uint8_t* compress(uint8_t* srcData, int srcSize, int& outSize)
 
     // Allocate
     writePos = 0;
+    compressedData.clear();
 
     // Write the table
     write(srcSize, 32);
@@ -282,9 +284,10 @@ uint8_t* compress(uint8_t* srcData, int srcSize, int& outSize)
     }
 
     // Write padding at the end
-    if (writePos % 8)
+    auto padding = 8 - writePos % 8;
+    if (padding)
     {
-        write(0, 8 - writePos % 8);
+        write(0, padding);
     }
 
     outSize = (int)compressedData.size();

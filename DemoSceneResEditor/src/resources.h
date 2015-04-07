@@ -31,8 +31,8 @@ struct sTextureCmd
     virtual sTextureCmd* copy() = 0;
     struct sTexture* texture = nullptr;
     virtual eRES_CMD getType() = 0;
-    virtual void serialize(vector<uint8_t>& data) = 0;
-    virtual int deserialize(uint8_t* pData) = 0;
+    virtual void serialize() = 0;
+    virtual void deserialize() = 0;
 };
 
 struct sTextureCmdFILL : public sTextureCmd
@@ -40,8 +40,8 @@ struct sTextureCmdFILL : public sTextureCmd
     res_Color color = {255, 255, 255, 255};
     sTextureCmd* copy() override;
     eRES_CMD getType() override { return RES_FILL; }
-    void serialize(vector<uint8_t>& data) override;
-    int deserialize(uint8_t* pData) override;
+    void serialize() override;
+    void deserialize() override;
 };
 
 struct sTextureCmdRECT : public sTextureCmd
@@ -50,8 +50,8 @@ struct sTextureCmdRECT : public sTextureCmd
     int x1 = 0, y1 = 0, x2 = 32, y2 = 32;
     sTextureCmd* copy() override;
     eRES_CMD getType() override { return RES_RECT; }
-    void serialize(vector<uint8_t>& data) override;
-    int deserialize(uint8_t* pData) override;
+    void serialize() override;
+    void deserialize() override;
 };
 
 struct sTextureCmdBEVEL : public sTextureCmd
@@ -61,8 +61,8 @@ struct sTextureCmdBEVEL : public sTextureCmd
     int bevel = 5;
     sTextureCmd* copy() override;
     eRES_CMD getType() override { return RES_BEVEL; }
-    void serialize(vector<uint8_t>& data) override;
-    int deserialize(uint8_t* pData) override;
+    void serialize() override;
+    void deserialize() override;
 };
 
 struct sTextureCmdCIRCLE : public sTextureCmd
@@ -72,8 +72,8 @@ struct sTextureCmdCIRCLE : public sTextureCmd
     int radius = 20;
     sTextureCmd* copy() override;
     eRES_CMD getType() override { return RES_CIRCLE; }
-    void serialize(vector<uint8_t>& data) override;
-    int deserialize(uint8_t* pData) override;
+    void serialize() override;
+    void deserialize() override;
 };
 
 struct sTextureCmdBEVEL_CIRCLE : public sTextureCmd
@@ -84,8 +84,8 @@ struct sTextureCmdBEVEL_CIRCLE : public sTextureCmd
     int bevel = 3;
     sTextureCmd* copy() override;
     eRES_CMD getType() override { return RES_BEVEL_CIRCLE; }
-    void serialize(vector<uint8_t>& data) override;
-    int deserialize(uint8_t* pData) override;
+    void serialize() override;
+    void deserialize() override;
 };
 
 struct sTextureCmdLINE : public sTextureCmd
@@ -95,8 +95,8 @@ struct sTextureCmdLINE : public sTextureCmd
     int size = 3;
     sTextureCmd* copy() override;
     eRES_CMD getType() override { return RES_LINE; }
-    void serialize(vector<uint8_t>& data) override;
-    int deserialize(uint8_t* pData) override;
+    void serialize() override;
+    void deserialize() override;
 };
 
 struct sTextureCmdGRADIENT : public sTextureCmd
@@ -106,16 +106,16 @@ struct sTextureCmdGRADIENT : public sTextureCmd
     bool bVertical = false;
     sTextureCmd* copy() override;
     eRES_CMD getType() override { return RES_GRADIENT; }
-    void serialize(vector<uint8_t>& data) override;
-    int deserialize(uint8_t* pData) override;
+    void serialize() override;
+    void deserialize() override;
 };
 
 struct sTextureCmdNORMAL_MAP : public sTextureCmd
 {
     sTextureCmd* copy() override;
     eRES_CMD getType() override { return RES_NORMAL_MAP; }
-    void serialize(vector<uint8_t>& data) override;
-    int deserialize(uint8_t* pData) override;
+    void serialize() override;
+    void deserialize() override;
 };
 
 struct sTextureCmdIMAGE : public sTextureCmd
@@ -125,16 +125,16 @@ struct sTextureCmdIMAGE : public sTextureCmd
     int imgId = 0;
     sTextureCmd* copy() override;
     eRES_CMD getType() override { return RES_IMAGE; }
-    void serialize(vector<uint8_t>& data) override;
-    int deserialize(uint8_t* pData) override;
+    void serialize() override;
+    void deserialize() override;
 };
 
 struct sTexture
 {
     virtual ~sTexture();
     void bake();
-    void serialize(vector<uint8_t>& data);
-    int deserialize(uint8_t* pData);
+    void serialize();
+    void deserialize();
     sTexture* copy() const;
 
     Texture* texture = nullptr;

@@ -1,4 +1,5 @@
 #include "resources.h"
+#include "compress.h"
 
 vector<sTexture*> res_textures;
 vector<res_palColor> res_palette;
@@ -261,208 +262,191 @@ uint8_t packPos(int pos)
     return (pos + 32) / 4;
 }
 
-void sTextureCmdFILL::serialize(vector<uint8_t>& data)
+void sTextureCmdFILL::serialize()
 {
-    data.push_back(RES_FILL);
-    data.push_back((uint8_t)res_getColorId(color));
+    write(RES_FILL, 8);
+    write(res_getColorId(color), 8);
 }
 
-int sTextureCmdFILL::deserialize(uint8_t* pData)
+void sTextureCmdFILL::deserialize()
 {
-    color = res_palette[pData[0]];
-
-    return 1;
+    color = res_palette[readBits(8)];
 }
 
-void sTextureCmdRECT::serialize(vector<uint8_t>& data)
+void sTextureCmdRECT::serialize()
 {
-    data.push_back(RES_RECT);
-    data.push_back((uint8_t)res_getColorId(color));
+    write(RES_RECT, 8);
+    write(res_getColorId(color), 8);
 
-    data.push_back(packPos(x1));
-    data.push_back(packPos(y1));
-    data.push_back(packPos(x2));
-    data.push_back(packPos(y2));
+    write((int)packPos(x1), 8);
+    write((int)packPos(y1), 8);
+    write((int)packPos(x2), 8);
+    write((int)packPos(y2), 8);
 }
 
-int sTextureCmdRECT::deserialize(uint8_t* pData)
+void sTextureCmdRECT::deserialize()
 {
-    color = res_palette[pData[0]];
+    color = res_palette[readBits(8)];
 
-    x1 = unpackPos(pData[1]);
-    y1 = unpackPos(pData[2]);
-    x2 = unpackPos(pData[3]);
-    y2 = unpackPos(pData[4]);
-
-    return 5;
+    x1 = unpackPos(readBits(8));
+    y1 = unpackPos(readBits(8));
+    x2 = unpackPos(readBits(8));
+    y2 = unpackPos(readBits(8));
 }
 
-void sTextureCmdBEVEL::serialize(vector<uint8_t>& data)
+void sTextureCmdBEVEL::serialize()
 {
-    data.push_back(RES_BEVEL);
-    data.push_back((uint8_t)res_getColorId(color));
+    write(RES_BEVEL, 8);
+    write(res_getColorId(color), 8);
 
-    data.push_back(packPos(x1));
-    data.push_back(packPos(y1));
-    data.push_back(packPos(x2));
-    data.push_back(packPos(y2));
+    write((int)packPos(x1), 8);
+    write((int)packPos(y1), 8);
+    write((int)packPos(x2), 8);
+    write((int)packPos(y2), 8);
 
-    data.push_back((uint8_t)bevel);
+    write(bevel - 1, 6);
 }
 
-int sTextureCmdBEVEL::deserialize(uint8_t* pData)
+void sTextureCmdBEVEL::deserialize()
 {
-    color = res_palette[pData[0]];
+    color = res_palette[readBits(8)];
 
-    x1 = unpackPos(pData[1]);
-    y1 = unpackPos(pData[2]);
-    x2 = unpackPos(pData[3]);
-    y2 = unpackPos(pData[4]);
+    x1 = unpackPos(readBits(8));
+    y1 = unpackPos(readBits(8));
+    x2 = unpackPos(readBits(8));
+    y2 = unpackPos(readBits(8));
 
-    bevel = (int)pData[5];
-
-    return 6;
+    bevel = readBits(6) + 1;
 }
 
-void sTextureCmdCIRCLE::serialize(vector<uint8_t>& data)
+void sTextureCmdCIRCLE::serialize()
 {
-    data.push_back(RES_CIRCLE);
-    data.push_back((uint8_t)res_getColorId(color));
+    write(RES_CIRCLE, 8);
+    write(res_getColorId(color), 8);
 
-    data.push_back(packPos(x));
-    data.push_back(packPos(y));
+    write((int)packPos(x), 8);
+    write((int)packPos(y), 8);
 
-    data.push_back((uint8_t)radius);
+    write(radius - 1, 8);
 }
 
-int sTextureCmdCIRCLE::deserialize(uint8_t* pData)
+void sTextureCmdCIRCLE::deserialize()
 {
-    color = res_palette[pData[0]];
+    color = res_palette[readBits(8)];
 
-    x = unpackPos(pData[1]);
-    y = unpackPos(pData[2]);
+    x = unpackPos(readBits(8));
+    y = unpackPos(readBits(8));
 
-    radius = (int)pData[3];
-
-    return 4;
+    radius = readBits(8) + 1;
 }
 
-void sTextureCmdBEVEL_CIRCLE::serialize(vector<uint8_t>& data)
+void sTextureCmdBEVEL_CIRCLE::serialize()
 {
-    data.push_back(RES_BEVEL_CIRCLE);
-    data.push_back((uint8_t)res_getColorId(color));
+    write(RES_BEVEL_CIRCLE, 8);
+    write(res_getColorId(color), 8);
 
-    data.push_back(packPos(x));
-    data.push_back(packPos(y));
+    write((int)packPos(x), 8);
+    write((int)packPos(y), 8);
 
-    data.push_back((uint8_t)radius);
-    data.push_back((uint8_t)bevel);
+    write(radius - 1, 8);
+    write(bevel - 1, 6);
 }
 
-int sTextureCmdBEVEL_CIRCLE::deserialize(uint8_t* pData)
+void sTextureCmdBEVEL_CIRCLE::deserialize()
 {
-    color = res_palette[pData[0]];
+    color = res_palette[readBits(8)];
 
-    x = unpackPos(pData[1]);
-    y = unpackPos(pData[2]);
+    x = unpackPos(readBits(8));
+    y = unpackPos(readBits(8));
 
-    radius = (int)pData[3];
-    bevel = (int)pData[4];
-
-    return 5;
+    radius = readBits(8) + 1;
+    bevel = readBits(6) + 1;
 }
 
-void sTextureCmdLINE::serialize(vector<uint8_t>& data)
+void sTextureCmdLINE::serialize()
 {
-    data.push_back(RES_LINE);
-    data.push_back((uint8_t)res_getColorId(color));
+    write(RES_LINE, 8);
+    write(res_getColorId(color), 8);
 
-    data.push_back(packPos(x1));
-    data.push_back(packPos(y1));
-    data.push_back(packPos(x2));
-    data.push_back(packPos(y2));
+    write((int)packPos(x1), 8);
+    write((int)packPos(y1), 8);
+    write((int)packPos(x2), 8);
+    write((int)packPos(y2), 8);
 
-    data.push_back((uint8_t)size);
+    write(size - 1, 6);
 }
 
-int sTextureCmdLINE::deserialize(uint8_t* pData)
+void sTextureCmdLINE::deserialize()
 {
-    color = res_palette[pData[0]];
+    color = res_palette[readBits(8)];
 
-    x1 = unpackPos(pData[1]);
-    y1 = unpackPos(pData[2]);
-    x2 = unpackPos(pData[3]);
-    y2 = unpackPos(pData[4]);
+    x1 = unpackPos(readBits(8));
+    y1 = unpackPos(readBits(8));
+    x2 = unpackPos(readBits(8));
+    y2 = unpackPos(readBits(8));
 
-    size = (int)pData[5];
-
-    return 6;
+    size = readBits(6) + 1;
 }
 
-void sTextureCmdGRADIENT::serialize(vector<uint8_t>& data)
+void sTextureCmdGRADIENT::serialize()
 {
-    data.push_back(RES_GRADIENT);
-    data.push_back((uint8_t)res_getColorId(color1));
-    data.push_back((uint8_t)res_getColorId(color2));
+    write(RES_GRADIENT, 8);
+    write(res_getColorId(color1), 8);
+    write(res_getColorId(color2), 8);
 
-    data.push_back(packPos(x1));
-    data.push_back(packPos(y1));
-    data.push_back(packPos(x2));
-    data.push_back(packPos(y2));
+    write((int)packPos(x1), 8);
+    write((int)packPos(y1), 8);
+    write((int)packPos(x2), 8);
+    write((int)packPos(y2), 8);
 
-    data.push_back(bVertical ? 1 : 0);
+    write(bVertical ? 1 : 0, 1);
 }
 
-int sTextureCmdGRADIENT::deserialize(uint8_t* pData)
+void sTextureCmdGRADIENT::deserialize()
 {
-    color1 = res_palette[pData[0]];
-    color2 = res_palette[pData[1]];
+    color1 = res_palette[readBits(8)];
+    color2 = res_palette[readBits(8)];
 
-    x1 = unpackPos(pData[2]);
-    y1 = unpackPos(pData[3]);
-    x2 = unpackPos(pData[4]);
-    y2 = unpackPos(pData[5]);
+    x1 = unpackPos(readBits(8));
+    y1 = unpackPos(readBits(8));
+    x2 = unpackPos(readBits(8));
+    y2 = unpackPos(readBits(8));
 
-    bVertical = pData[6] ? true : false;
-
-    return 7;
+    bVertical = readBits(1) ? true : false;
 }
 
-void sTextureCmdNORMAL_MAP::serialize(vector<uint8_t>& data)
+void sTextureCmdNORMAL_MAP::serialize()
 {
-    data.push_back(RES_NORMAL_MAP);
+    write(RES_NORMAL_MAP, 8);
 }
 
-int sTextureCmdNORMAL_MAP::deserialize(uint8_t* pData)
+void sTextureCmdNORMAL_MAP::deserialize()
 {
-    return 0;
 }
 
-void sTextureCmdIMAGE::serialize(vector<uint8_t>& data)
+void sTextureCmdIMAGE::serialize()
 {
-    data.push_back(RES_IMAGE);
-    data.push_back((uint8_t)res_getColorId(color));
+    write(RES_IMAGE, 8);
+    write(res_getColorId(color), 8);
 
-    data.push_back(packPos(x1));
-    data.push_back(packPos(y1));
-    data.push_back(packPos(x2));
-    data.push_back(packPos(y2));
+    write((int)packPos(x1), 8);
+    write((int)packPos(y1), 8);
+    write((int)packPos(x2), 8);
+    write((int)packPos(y2), 8);
 
-    data.push_back((uint8_t)imgId);
+    write(imgId, 8);
 }
 
-int sTextureCmdIMAGE::deserialize(uint8_t* pData)
+void sTextureCmdIMAGE::deserialize()
 {
-    color = res_palette[pData[0]];
+    color = res_palette[readBits(8)];
 
-    x1 = unpackPos(pData[1]);
-    y1 = unpackPos(pData[2]);
-    x2 = unpackPos(pData[3]);
-    y2 = unpackPos(pData[4]);
+    x1 = unpackPos(readBits(8));
+    y1 = unpackPos(readBits(8));
+    x2 = unpackPos(readBits(8));
+    y2 = unpackPos(readBits(8));
 
-    imgId = (int)pData[5];
-
-    return 6;
+    imgId = readBits(8);
 }
 
 int findExpo(int texSize)
@@ -481,43 +465,36 @@ int imgDimToBits(int texSize)
     return findExpo(texSize) - 3;
 }
 
-void sTexture::serialize(vector<uint8_t>& data)
+void sTexture::serialize()
 {
-    data.push_back(RES_IMG);
-
-    // For the width and height we only need to save
-    // those dimensions: 8, 16, 32, 64, 128, 256, 512, 1024
-    // This fits in 3 bits. So we can put both in 1 byte and it 
-    // leaves 2 bits for other flags to know if it has a normal
-    // map and/or a material map
-    // wwwhhhmn, width, height, material map, normal map
-    uint8_t dim = 0;
-    dim |= (texNormalMap ? 0x01 : 0x00);
-    dim |= (textMaterialMap ? 0x02 : 0x00);
-    dim |= (imgDimToBits(w) << 5) & 0xe0;
-    dim |= (imgDimToBits(h) << 2) & 0x1c;
-    data.push_back(dim);
+    write(RES_IMG, 8);
+    write(imgDimToBits(w), 3);
+    write(imgDimToBits(h), 3);
+    write(texNormalMap ? 1 : 0, 1);
+    write(textMaterialMap ? 1 : 0, 1);
     for (auto cmd : cmds)
     {
-        cmd->serialize(data);
+        cmd->serialize();
     }
-    data.push_back(RES_IMG_END);
+    write(RES_IMG_END, 8);
 }
 
-int sTexture::deserialize(uint8_t* pData)
+void sTexture::deserialize()
 {
-    int size = 1;
+    w = readBits(3);
+    h = readBits(3);
 
-    auto dim = pData[0];
-    w = (int)std::pow<int, int>(2, ((dim >> 5) & 0x07) + 3);
-    h = (int)std::pow<int, int>(2, ((dim >> 2) & 0x07) + 3);
-    bool hasNormalMap = dim & 0x01 ? true : false;
-    bool hasMaterialMap = dim & 0x02 ? true : false;
+    w = (int)std::pow<int, int>(2, w + 3);
+    h = (int)std::pow<int, int>(2, h + 3);
 
-    while (pData[size] != RES_IMG_END)
+    bool hasNormalMap = readBits(1) ? true : false;
+    bool hasMaterialMap = readBits(1) ? true : false;
+
+    auto b = (uint8_t)readBits(8);
+    while (b != RES_IMG_END)
     {
         sTextureCmd* cmd;
-        switch (pData[size])
+        switch (b)
         {
             case RES_FILL: cmd = new sTextureCmdFILL(); break;
             case RES_RECT: cmd = new sTextureCmdRECT(); break;
@@ -529,13 +506,10 @@ int sTexture::deserialize(uint8_t* pData)
             case RES_NORMAL_MAP: cmd = new sTextureCmdNORMAL_MAP(); break;
             case RES_IMAGE: cmd = new sTextureCmdIMAGE(); break;
         }
-        size += cmd->deserialize(pData + size + 1);
+        cmd->deserialize();
         cmds.push_back(cmd);
-
-        size++;
+        b = (uint8_t)readBits(8);
     }
-
-    return size + 1;
 }
 
 sTexture* sTexture::copy() const

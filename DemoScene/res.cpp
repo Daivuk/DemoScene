@@ -251,18 +251,19 @@ void setupCamera(sCamera& out, float *pos, float* lookat, float* transform, floa
     res_currentCamera = &out;
 }
 
-void createImg(int dim)
+void createImg()
 {
-    int w = ((dim >> 5) & 0x07) + 3;
-    int h = ((dim >> 2) & 0x07) + 3;
+    int w = readBits(3) + 3;
+    int h = readBits(3) + 3;
     w = pow(2, w);
     h = pow(2, h);
     img.pData = (uint32_t*)mem_alloc(w * h * 4);
     img.w = w;
     img.h = h;
+    bool bHasNormalMap = readBits(1) ? true : false;
+    bool bHasMaterialMap = readBits(1) ? true : false;
 }
 
-uint8_t* resData;
 uint8_t resDataCompressed[] = {
 #include "res_data.h"
  /*   3, // Texture count
@@ -340,17 +341,32 @@ uint32_t colorFromPalette(int id)
     return *(uint32_t*)(res_palette + (id * 4));
 }
 
+int g_x1, g_y1, g_x2, g_y2;
+void readRect()
+{
+    g_x1 = unpackPos(readBits(8));
+    g_y1 = unpackPos(readBits(8));
+    g_x2 = unpackPos(readBits(8));
+    g_y2 = unpackPos(readBits(8));
+}
+void readPosition()
+{
+    g_x1 = unpackPos(readBits(8));
+    g_y1 = unpackPos(readBits(8));
+}
+
 void res_load()
 {
     // Uncompress it first
     int dataSize;
-    resData = decompress(resDataCompressed, sizeof(resDataCompressed), dataSize);
+    readData = decompress(resDataCompressed, sizeof(resDataCompressed), dataSize);
+    readPos = 0;
 
-    res_textureCount = resData[0];
-    res_meshCount = resData[1];
-    res_modelCount = resData[2];
-    res_cameraCount = resData[3];
-    res_colorCount = resData[4];
+    res_textureCount = readBits(8);
+    res_meshCount = readBits(8);
+    res_modelCount = readBits(8);
+    res_cameraCount = readBits(8);
+    res_colorCount = readBits(8);
 
     int curTexture = 0;
     int curMesh = 0;
@@ -369,61 +385,65 @@ void res_load()
                                    ));
     float *pTransforms = transforms;
 
-    mem_cpy(res_palette, resData + 5, res_colorCount * 4);
-
-    for (int i = 5 + res_colorCount * 4; i < dataSize; ++i)
+    for (int i = 0; i < res_colorCount * 4; i += 4)
     {
-        switch (resData[i])
+        res_palette[i + 0] = (uint8_t)readBits(8);
+        res_palette[i + 1] = (uint8_t)readBits(8);
+        res_palette[i + 2] = (uint8_t)readBits(8);
+        res_palette[i + 3] = (uint8_t)readBits(8);
+    }
+
+    bool bDone = false;
+    while (!bDone)
+    {
+        switch (readBits(8))
         {
             case RES_IMG:
-                createImg(resData[i + 1]);
-                i += 1;
+                createImg();
                 break;
             case RES_FILL:
-                fill(colorFromPalette(resData[i + 1]));
-                i += 1;
+                fill(colorFromPalette(readBits(8)));
                 break;
             case RES_RECT:
-                fillRect(colorFromPalette(resData[i + 1]),
-                         unpackPos(resData[i + 2]),
-                         unpackPos(resData[i + 3]),
-                         unpackPos(resData[i + 4]),
-                         unpackPos(resData[i + 5]));
-                i += 5;
+            {
+                auto colorId = readBits(8);
+                readRect();
+                fillRect(colorFromPalette(colorId), g_x1, g_y1, g_x2, g_y2);
                 break;
+            }
             case RES_BEVEL:
-                bevel(colorFromPalette(resData[i + 1]),
-                         resData[i + 6],
-                         unpackPos(resData[i + 2]),
-                         unpackPos(resData[i + 3]),
-                         unpackPos(resData[i + 4]),
-                         unpackPos(resData[i + 5]));
-                i += 6;
+            {
+                auto colorId = readBits(8);
+                readRect();
+                auto bevelSize = readBits(6) + 1;
+                bevel(colorFromPalette(colorId), bevelSize, g_x1, g_y1, g_x2, g_y2);
                 break;
+            }
             case RES_CIRCLE:
-                drawCircle(unpackPos(resData[i + 2]),
-                           unpackPos(resData[i + 3]),
-                           resData[i + 4], 
-                           colorFromPalette(resData[i + 1]));
-                i += 4;
+            {
+                auto colorId = readBits(8);
+                readPosition();
+                auto radius = readBits(8) + 1;
+                drawCircle(g_x1, g_y1, radius, colorFromPalette(colorId));
                 break;
+            }
             case RES_BEVEL_CIRCLE:
-                drawCircle(unpackPos(resData[i + 2]),
-                           unpackPos(resData[i + 3]),
-                           resData[i + 4], 
-                           colorFromPalette(resData[i + 1]),
-                           (int)(resData[i + 5]));
-                i += 5;
+            {
+                auto colorId = readBits(8);
+                readPosition();
+                auto radius = readBits(8) + 1;
+                auto bevelSize = readBits(6) + 1;
+                drawCircle(g_x1, g_y1, radius, colorFromPalette(colorId), bevelSize);
                 break;
+            }
             case RES_LINE:
-                drawLine(unpackPos(resData[i + 2]),
-                         unpackPos(resData[i + 3]),
-                         unpackPos(resData[i + 4]),
-                         unpackPos(resData[i + 5]),
-                         colorFromPalette(resData[i + 1]),
-                         resData[i + 6]);
-                i += 6;
+            {
+                auto colorId = readBits(8);
+                readRect();
+                auto thickness = readBits(6) + 1;
+                drawLine(g_x1, g_y1, g_x2, g_y2, colorFromPalette(colorId), thickness);
                 break;
+            }
             case RES_IMG_END:
                 textureFromData(res_textures[curTexture++], (uint8_t*)img.pData, img.w, img.h);
                 break;
@@ -431,61 +451,61 @@ void res_load()
                 normalMap();
                 break;
             case RES_IMAGE:
-                putImg(colorFromPalette(resData[i + 1]),
-                       unpackPos(resData[i + 2]),
-                       unpackPos(resData[i + 3]),
-                       unpackPos(resData[i + 4]),
-                       unpackPos(resData[i + 5]),
-                       res_textures[resData[i + 6]].data,
-                       res_textures[resData[i + 6]].w,
-                       res_textures[resData[i + 6]].h);
-                i += 6;
+            {
+                auto colorId = readBits(8);
+                readRect();
+                auto imgId = readBits(8);
+                putImg(colorFromPalette(colorId), g_x1, g_y1, g_x2, g_y2,
+                       res_textures[imgId].data,
+                       res_textures[imgId].w,
+                       res_textures[imgId].h);
                 break;
-
+            }
             case RES_MESH:
-                createMesh();
+                //createMesh();
                 break;
             case RES_QUAD:
-                quad(dataToPos(resData + i + 1),
-                     dataToPos(resData + i + 3), 
-                     dataToPos(resData + i + 5),
-                     1 << resData[i + 7],
-                     1 << resData[i + 8],
-                     dataToAngle(resData[i + 9]),
-                     dataToAngle(resData[i + 10]));
-                i += 10;
+                //quad(dataToPos(resData + i + 1),
+                //     dataToPos(resData + i + 3), 
+                //     dataToPos(resData + i + 5),
+                //     1 << resData[i + 7],
+                //     1 << resData[i + 8],
+                //     dataToAngle(resData[i + 9]),
+                //     dataToAngle(resData[i + 10]));
                 break;
             case RES_MESH_END:
-                meshFromData(res_meshes[curMesh++], mesh.pQuads, &res_textures[resData[i + 1]], &res_textures[resData[i + 2]]);
-                i += 2;
+                //meshFromData(res_meshes[curMesh++], mesh.pQuads, &res_textures[resData[i + 1]], &res_textures[resData[i + 2]]);
                 break;
 
             case RES_MODEL:
-                modelFromMeshes(res_models[curModel],
-                                pTransforms,
-                                dataToPos(resData + i + 1),
-                                dataToPos(resData + i + 3),
-                                dataToPos(resData + i + 5),
-                                dataToAngle(resData[i + 7]),
-                                dataToAngle(resData[i + 8]),
-                                (int)resData[i + 9], resData + i + 10);
-                i += 9 + (int)resData[i + 9];
-                ++curModel;
-                pTransforms += 16;
+                //modelFromMeshes(res_models[curModel],
+                //                pTransforms,
+                //                dataToPos(resData + i + 1),
+                //                dataToPos(resData + i + 3),
+                //                dataToPos(resData + i + 5),
+                //                dataToAngle(resData[i + 7]),
+                //                dataToAngle(resData[i + 8]),
+                //                (int)resData[i + 9], resData + i + 10);
+                //++curModel;
+                //pTransforms += 16;
                 break;
 
             case RES_CAMERA:
-                setupCamera(res_cameras[curCamera],
-                            pTransforms,
-                            pTransforms + 3,
-                            pTransforms + 6,
-                            dataToPos(resData + i + 1),
-                            dataToPos(resData + i + 3),
-                            dataToPos(resData + i + 5),
-                            dataToPos(resData + i + 7),
-                            dataToPos(resData + i + 9),
-                            dataToPos(resData + i + 11));
-                pTransforms += 3 + 3 + 16;
+                //setupCamera(res_cameras[curCamera],
+                //            pTransforms,
+                //            pTransforms + 3,
+                //            pTransforms + 6,
+                //            dataToPos(resData + i + 1),
+                //            dataToPos(resData + i + 3),
+                //            dataToPos(resData + i + 5),
+                //            dataToPos(resData + i + 7),
+                //            dataToPos(resData + i + 9),
+                //            dataToPos(resData + i + 11));
+                //pTransforms += 3 + 3 + 16;
+                break;
+
+            case RES_END:
+                bDone = true;
                 break;
         }
     }
