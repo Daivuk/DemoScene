@@ -129,21 +129,27 @@ struct sTextureCmdIMAGE : public sTextureCmd
     void deserialize() override;
 };
 
+enum eTextureChannel
+{
+    CHANNEL_DIFFUSE = 0,
+    CHANNEL_NORMAL = 1,
+    CHANNEL_MATERIAL = 2
+};
+
 struct sTexture
 {
+    sTexture();
     virtual ~sTexture();
-    void bake();
+    void bake(int channel);
     void serialize();
     void deserialize();
     sTexture* copy() const;
 
-    Texture* texture = nullptr;
-    Texture* texNormalMap = nullptr;
-    Texture* textMaterialMap = nullptr;
+    Texture* texture[3];
 
     int w = 256, h = 256;
-    vector<sTextureCmd*> cmds;
-    uint32_t* data = nullptr;
+    vector<sTextureCmd*> cmds[3];
+    uint32_t* data[3];
 };
 
 extern vector<sTexture*> res_textures;

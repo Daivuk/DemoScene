@@ -516,8 +516,15 @@ void gfx_drawModel(sModel& model)
     {
         sMesh* pMesh = model.meshes[i];
 
-        deviceContext->PSSetShaderResources(0, 1, &pMesh->texture->view);
-        deviceContext->PSSetShaderResources(1, 1, &pMesh->normalMap->view);
+        deviceContext->PSSetShaderResources(0, 1, &pMesh->texture->view[RES_DIFFUSE]);
+        if (pMesh->texture->view[RES_NORMAL])
+        {
+            deviceContext->PSSetShaderResources(1, 1, &pMesh->texture->view[RES_NORMAL]);
+        }
+        else
+        {
+            //deviceContext->PSSetShaderResources(1, 1, &pMesh->normalMap->view);
+        }
         deviceContext->IASetVertexBuffers(0, 1, &pMesh->vertexBuffer, &stride, &offset);
         deviceContext->IASetIndexBuffer(pMesh->indexBuffer, DXGI_FORMAT_R16_UINT, 0);
         deviceContext->DrawIndexed(pMesh->indexCount, 0, 0);

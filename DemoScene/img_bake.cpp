@@ -2,12 +2,7 @@
 #include <cinttypes>
 #include "img_bake.h"
 #ifdef EDITOR
-double sqrt14(double n)
-{
-    _asm fld qword ptr[esp + 4]
-    _asm fsqrt
-    _asm ret 8
-}
+#include <cmath>
 #else
 #include "ds_mem.h"
 #include "mat.h"
@@ -267,7 +262,11 @@ void normalMap()
             int nz = 255;
 
             // Normalize
+#ifdef EDITOR
+            int len = (int)std::sqrt((double)(nx * nx + ny * ny + nz * nz));
+#else
             int len = (int)sqrt14((double)(nx * nx + ny * ny + nz * nz));
+#endif
             nx = nx * 255 / len;
             ny = ny * 255 / len;
             nz = nz * 255 / len;

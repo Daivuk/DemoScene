@@ -70,9 +70,9 @@ MainVC::MainVC()
         }
         auto resT = (sTexture*)pCheckBox->pUserData;
         orect = orect.Grow(-2);
-        if (resT->texture)
+        if (resT->texture[CHANNEL_DIFFUSE])
         {
-            float ratio = resT->texture->getSizef().x / resT->texture->getSizef().y;
+            float ratio = resT->texture[CHANNEL_DIFFUSE]->getSizef().x / resT->texture[CHANNEL_DIFFUSE]->getSizef().y;
             if (ratio > 1)
             {
                 orect.w /= ratio;
@@ -82,7 +82,7 @@ MainVC::MainVC()
                 orect.z *= ratio;
             }
             OSB->drawRectWithUVs(OGetTexture("dottedLine.png"), orect, {0, 0, orect.z / 16, orect.w / 16}, g_toolBtnHoverColor);
-            OSB->drawRect(resT->texture, orect);
+            OSB->drawRect(resT->texture[CHANNEL_DIFFUSE], orect);
         }
     });
 
@@ -91,11 +91,28 @@ MainVC::MainVC()
     {
         auto state = pCheckBox->getState(uiContext);
         auto orect = UI2Onut(rect);
-        OSB->drawRectWithUVs(OGetTexture("dottedLine.png"), orect, {0, 0, orect.z / 16, orect.w / 16}, g_toolBtnHoverColor);
-        if (workingTexture->texture)
+        if (OInput->isStateDown(DIK_SPACE))
         {
-            OSB->drawRect(workingTexture->texture, orect);
+            // Render with shaders and shit
+            if (workingTexture->texture[CHANNEL_DIFFUSE])
+            {
+                OSB->drawRect(workingTexture->texture[CHANNEL_DIFFUSE], orect);
+            }
         }
+        else
+        {
+            OSB->drawRectWithUVs(OGetTexture("dottedLine.png"), orect, {0, 0, orect.z / 16, orect.w / 16}, g_toolBtnHoverColor);
+            if (workingTexture->texture[workingChannel])
+            {
+                OSB->drawRect(workingTexture->texture[workingChannel], orect);
+            }
+        }
+    });
+
+    uiContext.addStyle<UIPanel>("buttonSelection", [this](const onut::UIPanel* pCheckBox, const onut::sUIRect& rect)
+    {
+        auto orect = UI2Onut(rect);
+        OSB->drawRect(nullptr, orect.Grow(2), g_guideColor);
     });
 
     uiContext.addStyle<onut::UIPanel>("colorSlider", [](const onut::UIPanel* pPanel, const onut::sUIRect& rect)
@@ -139,6 +156,30 @@ MainVC::MainVC()
     cmdControls[eRES_CMD::RES_NORMAL_MAP] = uiInspectorTexture->getChild<UICheckBox>("chkCmdNORMAL_MAP");
     cmdControls[eRES_CMD::RES_GRADIENT] = uiInspectorTexture->getChild<UICheckBox>("chkCmdGRADIENT");
     cmdControls[eRES_CMD::RES_IMAGE] = uiInspectorTexture->getChild<UICheckBox>("chkCmdIMAGE");
+    uiInspectorTexture->getChild<UIButton>("btnDiffuse")->onClick = [this](UIControl* c, const UIMouseEvent& e)
+    {
+        workingChannel = CHANNEL_DIFFUSE;
+        buildUIForTexture();
+        uiInspectorTexture->getChild<UIPanel>("channelSelection")->rect = c->rect;
+    };
+    uiInspectorTexture->getChild<UIButton>("btnNormal")->onClick = [this](UIControl* c, const UIMouseEvent& e)
+    {
+        workingChannel = CHANNEL_NORMAL;
+        buildUIForTexture();
+        uiInspectorTexture->getChild<UIPanel>("channelSelection")->rect = c->rect;
+    };
+    uiInspectorTexture->getChild<UIButton>("btnMaterial")->onClick = [this](UIControl* c, const UIMouseEvent& e)
+    {
+        workingChannel = CHANNEL_MATERIAL;
+        buildUIForTexture();
+        uiInspectorTexture->getChild<UIPanel>("channelSelection")->rect = c->rect;
+    };
+    uiInspectorTexture->getChild<UIButton>("btnDelChannel")->onClick = [this](UIControl* c, const UIMouseEvent& e)
+    {
+        workingTexture->cmds[workingChannel].clear();
+        workingTexture->bake(workingChannel);
+        buildUIForTexture();
+    };
     for (auto& kv : cmdControls)
     {
         kv.second->retain();
@@ -153,14 +194,18 @@ MainVC::MainVC()
         auto d = uiTextureW->getInt();
         pnlTexture->rect.size.x = (float)d;
         workingTexture->w = d;
-        workingTexture->bake();
+        workingTexture->bake(CHANNEL_DIFFUSE);
+        workingTexture->bake(CHANNEL_NORMAL);
+        workingTexture->bake(CHANNEL_MATERIAL);
     };
     uiTextureH->onTextChanged = [this](UITextBox* c, const UITextBoxEvent& e)
     {
         auto d = uiTextureH->getInt();
         pnlTexture->rect.size.y = (float)d;
         workingTexture->h = d;
-        workingTexture->bake();
+        workingTexture->bake(CHANNEL_DIFFUSE);
+        workingTexture->bake(CHANNEL_NORMAL);
+        workingTexture->bake(CHANNEL_MATERIAL);
     };
 
     // Events
@@ -188,14 +233,14 @@ MainVC::MainVC()
     {
         insertCmd(new sTextureCmdLINE(), cmdControls[eRES_CMD::RES_LINE]->copy());
     };
-    uiInspectorTexture->getChild("btnCmdNORMAL_MAP")->onClick = [this](UIControl* c, const UIMouseEvent& e)
-    {
-        insertCmd(new sTextureCmdNORMAL_MAP(), cmdControls[eRES_CMD::RES_NORMAL_MAP]->copy());
-    };
-    uiInspectorTexture->getChild("btnCmdGRADIENT")->onClick = [this](UIControl* c, const UIMouseEvent& e)
-    {
-        insertCmd(new sTextureCmdGRADIENT(), cmdControls[eRES_CMD::RES_GRADIENT]->copy());
-    };
+    //uiInspectorTexture->getChild("btnCmdNORMAL_MAP")->onClick = [this](UIControl* c, const UIMouseEvent& e)
+    //{
+    //    insertCmd(new sTextureCmdNORMAL_MAP(), cmdControls[eRES_CMD::RES_NORMAL_MAP]->copy());
+    //};
+    //uiInspectorTexture->getChild("btnCmdGRADIENT")->onClick = [this](UIControl* c, const UIMouseEvent& e)
+    //{
+    //    insertCmd(new sTextureCmdGRADIENT(), cmdControls[eRES_CMD::RES_GRADIENT]->copy());
+    //};
     uiInspectorTexture->getChild("btnCmdIMAGE")->onClick = [this](UIControl* c, const UIMouseEvent& e)
     {
         insertCmd(new sTextureCmdIMAGE(), cmdControls[eRES_CMD::RES_IMAGE]->copy());
@@ -318,7 +363,7 @@ void hookColorPicker(UIControl* pCtrl, const std::string& childName, res_Color* 
                 (float)color.y / 255.f,
                 (float)color.z / 255.f,
                 (float)color.w / 255.f};
-            pMainVC->workingTexture->bake();
+            pMainVC->workingTexture->bake(pMainVC->workingChannel);
         });
     };
 }
@@ -336,7 +381,7 @@ void hookInteger(UIControl* pCtrl, const std::string& childName, int* pTarget, i
             pCtrl->setInt(correctedVal);
         }
         *pTarget = val;
-        pMainVC->workingTexture->bake();
+        pMainVC->workingTexture->bake(pMainVC->workingChannel);
     };
 }
 
@@ -399,12 +444,12 @@ void MainVC::insertCmd(sTextureCmd* pCmd, UIControl* pCtrl)
     pCtrl->pUserData = pCmd;
     auto selected = getSelectedCmd();
     auto index = selected.index;
-    if (index < workingTexture->cmds.size()) ++index;
+    if (index < workingTexture->cmds[workingChannel].size()) ++index;
     uiCmdStack->insertAt(pCtrl, index);
-    workingTexture->cmds.insert(workingTexture->cmds.begin() + index, pCmd);
+    workingTexture->cmds[workingChannel].insert(workingTexture->cmds[workingChannel].begin() + index, pCmd);
     ((UICheckBox*)pCtrl)->setIsChecked(true);
 
-    workingTexture->bake();
+    workingTexture->bake(workingChannel);
 
     hookCmd(pCmd, pCtrl);
 }
@@ -526,8 +571,8 @@ void MainVC::update()
             {
                 uiContext.clearState();
                 uiCmdStack->remove(selected.selectBox);
-                workingTexture->cmds.erase(workingTexture->cmds.begin() + selected.index);
-                workingTexture->bake();
+                workingTexture->cmds[workingChannel].erase(workingTexture->cmds[workingChannel].begin() + selected.index);
+                workingTexture->bake(workingChannel);
             }
         }
 
@@ -551,9 +596,9 @@ void MainVC::update()
             auto endVal = cmdStackOffset.get();
             endVal -= 50.f;
             auto stackH = uiCmdStack->getWorldRect(uiContext).size.y;
-            if (endVal < (float)workingTexture->cmds.size() * -50.f + stackH)
+            if (endVal < (float)workingTexture->cmds[workingChannel].size() * -50.f + stackH)
             {
-                endVal = (float)workingTexture->cmds.size() * -50.f + stackH;
+                endVal = (float)workingTexture->cmds[workingChannel].size() * -50.f + stackH;
             }
             cmdStackOffset.start(curVal, endVal, .15f, OEaseOut);
         }
@@ -569,19 +614,19 @@ void MainVC::update()
             else if (OInput->isStateJustDown(DIK_DOWN) &&
                      OInput->isStateDown(DIK_LCONTROL))
             {
-                if (selectedCmd.index < workingTexture->cmds.size() - 1)
+                if (selectedCmd.index < workingTexture->cmds[workingChannel].size() - 1)
                 {
                     selectedCmd.selectBox->retain();
                     selectedCmd.selectBox->remove();
-                    workingTexture->cmds.erase(workingTexture->cmds.begin() + selectedCmd.index);
+                    workingTexture->cmds[workingChannel].erase(workingTexture->cmds[workingChannel].begin() + selectedCmd.index);
                     ++selectedCmd.index;
 
                     uiCmdStack->insertAt(selectedCmd.selectBox, selectedCmd.index);
-                    workingTexture->cmds.insert(workingTexture->cmds.begin() + selectedCmd.index, selectedCmd.cmd);
+                    workingTexture->cmds[workingChannel].insert(workingTexture->cmds[workingChannel].begin() + selectedCmd.index, selectedCmd.cmd);
 
                     selectedCmd.selectBox->release();
 
-                    workingTexture->bake();
+                    workingTexture->bake(workingChannel);
                 }
             }
             else if (OInput->isStateJustDown(DIK_UP) &&
@@ -591,15 +636,15 @@ void MainVC::update()
                 {
                     selectedCmd.selectBox->retain();
                     selectedCmd.selectBox->remove();
-                    workingTexture->cmds.erase(workingTexture->cmds.begin() + selectedCmd.index);
+                    workingTexture->cmds[workingChannel].erase(workingTexture->cmds[workingChannel].begin() + selectedCmd.index);
                     --selectedCmd.index;
 
                     uiCmdStack->insertAt(selectedCmd.selectBox, selectedCmd.index);
-                    workingTexture->cmds.insert(workingTexture->cmds.begin() + selectedCmd.index, selectedCmd.cmd);
+                    workingTexture->cmds[workingChannel].insert(workingTexture->cmds[workingChannel].begin() + selectedCmd.index, selectedCmd.cmd);
 
                     selectedCmd.selectBox->release();
 
-                    workingTexture->bake();
+                    workingTexture->bake(workingChannel);
                 }
             }
         }
@@ -624,14 +669,17 @@ void MainVC::shiftTextureReferences(int index, int inc)
 {
     for (auto texture : res_textures)
     {
-        for (auto cmd : texture->cmds)
+        for (auto channel = 0; channel < 3; ++channel)
         {
-            if (cmd->getType() == RES_IMAGE)
+            for (auto cmd : texture->cmds[channel])
             {
-                auto& id = ((sTextureCmdIMAGE*)cmd)->imgId;
-                if (id >= (int)index)
+                if (cmd->getType() == RES_IMAGE)
                 {
-                    id += inc;
+                    auto& id = ((sTextureCmdIMAGE*)cmd)->imgId;
+                    if (id >= (int)index)
+                    {
+                        id += inc;
+                    }
                 }
             }
         }
@@ -705,6 +753,15 @@ void MainVC::render()
                 OPB->draw({offset.x + (float)pCmd->x + 4, offset.y + (float)pCmd->y - 4}, Magenta);
                 OPB->draw({offset.x + (float)pCmd->x - 4, offset.y + (float)pCmd->y + 4}, Magenta);
                 OPB->end();
+                OPB->begin(ePrimitiveType::LINE_STRIP);
+                for (int angle = 0; angle <= 360; angle += 10)
+                {
+                    OPB->draw({
+                        offset.x + (float)pCmd->x + cosf(DirectX::XMConvertToRadians((float)angle)) * (float)pCmd->radius,
+                        offset.y + (float)pCmd->y + sinf(DirectX::XMConvertToRadians((float)angle)) * (float)pCmd->radius
+                    }, Magenta);
+                }
+                OPB->end();
             }
             else if (dynamic_cast<sTextureCmdBEVEL_CIRCLE*>(cmd))
             {
@@ -714,6 +771,24 @@ void MainVC::render()
                 OPB->draw({offset.x + (float)pCmd->x + 4, offset.y + (float)pCmd->y + 4}, Magenta);
                 OPB->draw({offset.x + (float)pCmd->x + 4, offset.y + (float)pCmd->y - 4}, Magenta);
                 OPB->draw({offset.x + (float)pCmd->x - 4, offset.y + (float)pCmd->y + 4}, Magenta);
+                OPB->end();
+                OPB->begin(ePrimitiveType::LINE_STRIP);
+                for (int angle = 0; angle <= 360; angle += 10)
+                {
+                    OPB->draw({
+                        offset.x + (float)pCmd->x + cosf(DirectX::XMConvertToRadians((float)angle)) * (float)pCmd->radius,
+                        offset.y + (float)pCmd->y + sinf(DirectX::XMConvertToRadians((float)angle)) * (float)pCmd->radius
+                    }, Magenta);
+                }
+                OPB->end();
+                OPB->begin(ePrimitiveType::LINE_STRIP);
+                for (int angle = 0; angle <= 360; angle += 10)
+                {
+                    OPB->draw({
+                        offset.x + (float)pCmd->x + cosf(DirectX::XMConvertToRadians((float)angle)) * (float)(pCmd->radius - pCmd->bevel),
+                        offset.y + (float)pCmd->y + sinf(DirectX::XMConvertToRadians((float)angle)) * (float)(pCmd->radius - pCmd->bevel)
+                    }, Magenta);
+                }
                 OPB->end();
             }
             else if (dynamic_cast<sTextureCmdLINE*>(cmd))
@@ -757,14 +832,14 @@ void MainVC::render()
 void MainVC::buildUIForTexture()
 {
     uiCmdStack->removeAll();
-    for (auto cmd : workingTexture->cmds)
+    for (auto cmd : workingTexture->cmds[workingChannel])
     {
         addCmd(cmd, cmdControls[cmd->getType()]->copy());
     }
     uiTextureW->setInt(workingTexture->w);
     uiTextureH->setInt(workingTexture->h);
     pnlTexture->rect.size = {(float)workingTexture->w, (float)workingTexture->h};
-    workingTexture->bake();
+    workingTexture->bake(workingChannel);
 }
 
 void MainVC::showColorPicker(const res_palColor& color, function<void(const res_palColor&)> callback)
@@ -1133,7 +1208,7 @@ void MainVC::updateTextureEdit(const Vector2& diff, const Vector2& mousePos)
         updateTextEdit_RECT((sTextureCmdIMAGE*)cmd, diff, mousePos, dragId, downState);
     }
 
-    workingTexture->bake();
+    workingTexture->bake(workingChannel);
 }
 
 void MainVC::load()
@@ -1203,7 +1278,9 @@ void MainVC::load()
             {
                 auto pTexture = new sTexture();
                 pTexture->deserialize();
-                pTexture->bake();
+                pTexture->bake(CHANNEL_DIFFUSE);
+                pTexture->bake(CHANNEL_NORMAL);
+                pTexture->bake(CHANNEL_MATERIAL);
 
                 auto pSelectBox = new UICheckBox();
 

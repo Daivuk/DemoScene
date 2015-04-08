@@ -30,6 +30,10 @@ float* transforms;
 
 auto vertSize = (3 + 3 + 2);
 
+bool bHasNormalMap;
+bool bHasMaterialMap;
+int channel;
+
 struct sMeshQuad
 {
     sMeshQuad *pNext;
@@ -64,11 +68,11 @@ void textureFromData(sTexture& out, const uint8_t* pData, UINT w, UINT h)
     data.SysMemSlicePitch = 0;
 
     device->CreateTexture2D(&desc, &data, &pTexture);
-    device->CreateShaderResourceView(pTexture, NULL, &(out.view));
+    device->CreateShaderResourceView(pTexture, NULL, &(out.view[channel]));
 
     out.w = (int)w;
     out.h = (int)h;
-    out.data = (uint32_t*)pData;
+    out.data[channel] = (uint32_t*)pData;
 }
 
 void meshFromData(sMesh& out, sMeshQuad* pQuad, sTexture* pTexture, sTexture* pNormalMap)
@@ -260,8 +264,9 @@ void createImg()
     img.pData = (uint32_t*)mem_alloc(w * h * 4);
     img.w = w;
     img.h = h;
-    bool bHasNormalMap = readBits(1) ? true : false;
-    bool bHasMaterialMap = readBits(1) ? true : false;
+    bHasNormalMap = readBits(1) ? true : false;
+    bHasMaterialMap = readBits(1) ? true : false;
+    channel = RES_DIFFUSE;
 }
 
 uint8_t resDataCompressed[] = {
@@ -445,8 +450,17 @@ void res_load()
                 break;
             }
             case RES_IMG_END:
-                textureFromData(res_textures[curTexture++], (uint8_t*)img.pData, img.w, img.h);
+            {
+                if (channel == RES_NORMAL)
+                {
+                    normalMap();
+                }
+                textureFromData(res_textures[curTexture], (uint8_t*)img.pData, img.w, img.h);
+                if (bHasNormalMap && channel == RES_DIFFUSE) ++channel;
+                else if (bHasMaterialMap && channel == RES_NORMAL) ++channel;
+                else curTexture++;
                 break;
+            }
             case RES_NORMAL_MAP:
                 normalMap();
                 break;
@@ -456,7 +470,7 @@ void res_load()
                 readRect();
                 auto imgId = readBits(8);
                 putImg(colorFromPalette(colorId), g_x1, g_y1, g_x2, g_y2,
-                       res_textures[imgId].data,
+                       res_textures[imgId].data[channel],
                        res_textures[imgId].w,
                        res_textures[imgId].h);
                 break;

@@ -37,14 +37,18 @@ void draw()
     int y = 8;
     for (int i = 0; i < res_textureCount; ++i)
     {
-        if (x + res_textures[i].w + 8 > RESOLUTION_W)
+        for (int j = 0; j < 3; ++j)
         {
-            x = 8;
-            y += 256 + 8;
+            if (!res_textures[i].view[j]) continue;
+            if (x + res_textures[i].w + 8 > RESOLUTION_W)
+            {
+                x = 8;
+                y += 256 + 8;
+            }
+            const float rect[] {(float)x, (float)y, (float)res_textures[i].w, (float)res_textures[i].h};
+            spr_draw(res_textures[i].view[j], rect, GFX_WHITE);
+            x += res_textures[i].w + 8;
         }
-        const float rect[] {(float)x, (float)y, (float)res_textures[i].w, (float)res_textures[i].h};
-        spr_draw(res_textures[i].view, rect, GFX_WHITE);
-        x += res_textures[i].w + 8;
     }
 #endif
 

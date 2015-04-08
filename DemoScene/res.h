@@ -2,12 +2,16 @@
 #include <d3d11.h>
 #include <cinttypes>
 
+#define RES_DIFFUSE     0
+#define RES_NORMAL      1
+#define RES_MATERIAL    2
+
 struct sTexture
 {
-    ID3D11ShaderResourceView* view;
+    ID3D11ShaderResourceView* view[3];
     int w;
     int h;
-    uint32_t* data;
+    uint32_t* data[3];
 };
 
 struct sMesh
@@ -33,11 +37,11 @@ struct sCamera
     float *transform;
 };
 
-extern sTexture* res_textures;
-extern sMesh* res_meshes;
-extern sModel* res_models;
-extern sCamera* res_cameras;
-extern uint8_t* res_palette;
+extern sTexture*    res_textures;
+extern sMesh*       res_meshes;
+extern sModel*      res_models;
+extern sCamera*     res_cameras;
+extern uint8_t*     res_palette;
 
 extern int res_textureCount;
 extern int res_meshCount;

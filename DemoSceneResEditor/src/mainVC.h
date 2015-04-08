@@ -62,6 +62,7 @@ public:
     UIControl* uiColorPickerPreviousSample;
 
     sTexture* workingTexture;
+    int workingChannel = 0;
 
     map<eRES_CMD, UICheckBox*> cmdControls;
     UIControl* uiCmdStack;

@@ -64,14 +64,27 @@ res_Color::~res_Color()
     }
 }
 
+sTexture::sTexture()
+{
+    texture[CHANNEL_DIFFUSE] = nullptr;
+    texture[CHANNEL_NORMAL] = nullptr;
+    texture[CHANNEL_MATERIAL] = nullptr;
+    data[CHANNEL_DIFFUSE] = nullptr;
+    data[CHANNEL_NORMAL] = nullptr;
+    data[CHANNEL_MATERIAL] = nullptr;
+}
+
 sTexture::~sTexture()
 {
-    if (data) delete[] data;
-    if (texture) delete texture;
-    for (auto cmd : cmds)
-    {
-        delete cmd;
-    }
+    if (data[CHANNEL_DIFFUSE]) delete[] data[CHANNEL_DIFFUSE];
+    if (data[CHANNEL_NORMAL]) delete[] data[CHANNEL_NORMAL];
+    if (data[CHANNEL_MATERIAL]) delete[] data[CHANNEL_MATERIAL];
+    if (texture[CHANNEL_DIFFUSE]) delete texture[CHANNEL_DIFFUSE];
+    if (texture[CHANNEL_NORMAL]) delete texture[CHANNEL_NORMAL];
+    if (texture[CHANNEL_MATERIAL]) delete texture[CHANNEL_MATERIAL];
+    for (auto cmd : cmds[CHANNEL_DIFFUSE]) delete cmd;
+    for (auto cmd : cmds[CHANNEL_NORMAL]) delete cmd;
+    for (auto cmd : cmds[CHANNEL_MATERIAL]) delete cmd;
 }
 
 uint32_t packColor(const res_Color& color)
@@ -83,28 +96,28 @@ uint32_t packColor(const res_Color& color)
         (((int)color.w << 24) & 0xff000000);
 }
 
-void sTexture::bake()
+void sTexture::bake(int channel)
 {
     // Clean
-    if (data) delete[] data;
-    if (texture) delete texture;
-    data = nullptr;
-    texture = nullptr;
+    if (data[channel]) delete[] data[channel];
+    if (texture[channel]) delete texture[channel];
+    data[channel] = nullptr;
+    texture[channel] = nullptr;
     if (!w || !h) return;
 
     // Allocate memory
-    data = new uint32_t[w * h];
-    ZeroMemory(data, h * w * 4);
+    data[channel] = new uint32_t[w * h];
+    ZeroMemory(data[channel], h * w * 4);
 
-    if (!cmds.empty())
+    if (!cmds[channel].empty())
     {
         // Set our context
-        img.pData = data;
+        img.pData = data[channel];
         img.w = w;
         img.h = h;
 
         // Apply commands
-        for (auto cmd : cmds)
+        for (auto cmd : cmds[channel])
         {
             if (dynamic_cast<sTextureCmdFILL*>(cmd))
             {
@@ -136,24 +149,24 @@ void sTexture::bake()
                 auto* pCmd = (sTextureCmdLINE*)cmd;
                 drawLine(pCmd->x1, pCmd->y1, pCmd->x2, pCmd->y2, packColor(pCmd->color), pCmd->size);
             }
-            else if (dynamic_cast<sTextureCmdNORMAL_MAP*>(cmd))
-            {
-                auto* pCmd = (sTextureCmdNORMAL_MAP*)cmd;
-                normalMap();
-            }
-            else if (dynamic_cast<sTextureCmdGRADIENT*>(cmd))
-            {
-                auto* pCmd = (sTextureCmdGRADIENT*)cmd;
-            }
+            //else if (dynamic_cast<sTextureCmdNORMAL_MAP*>(cmd))
+            //{
+            //    auto* pCmd = (sTextureCmdNORMAL_MAP*)cmd;
+            //    normalMap();
+            //}
+            //else if (dynamic_cast<sTextureCmdGRADIENT*>(cmd))
+            //{
+            //    auto* pCmd = (sTextureCmdGRADIENT*)cmd;
+            //}
             else if (dynamic_cast<sTextureCmdIMAGE*>(cmd))
             {
                 auto* pCmd = (sTextureCmdIMAGE*)cmd;
                 if (pCmd->imgId < (int)res_textures.size())
                 {
                     auto srcTex = res_textures[pCmd->imgId];
-                    if (srcTex->data)
+                    if (srcTex->data[channel])
                     {
-                        putImg(packColor(pCmd->color), pCmd->x1, pCmd->y1, pCmd->x2, pCmd->y2, srcTex->data, srcTex->w, srcTex->h);
+                        putImg(packColor(pCmd->color), pCmd->x1, pCmd->y1, pCmd->x2, pCmd->y2, srcTex->data[channel], srcTex->w, srcTex->h);
                     }
                 }
             }
@@ -161,7 +174,19 @@ void sTexture::bake()
     }
 
     // Create our final texture
-    texture = Texture::createFromData({w, h}, (uint8_t*)data);
+    if (channel == CHANNEL_NORMAL)
+    {
+        auto normalData = new uint32_t[w * h];
+        memcpy(normalData, data[channel], w * h * 4);
+        img.pData = normalData;
+        normalMap();
+        texture[channel] = Texture::createFromData({w, h}, (uint8_t*)normalData);
+        delete[] normalData;
+    }
+    else
+    {
+        texture[channel] = Texture::createFromData({w, h}, (uint8_t*)data[channel]);
+    }
 }
 
 sTextureCmd* sTextureCmdFILL::copy()
@@ -470,13 +495,29 @@ void sTexture::serialize()
     write(RES_IMG, 8);
     write(imgDimToBits(w), 3);
     write(imgDimToBits(h), 3);
-    write(texNormalMap ? 1 : 0, 1);
-    write(textMaterialMap ? 1 : 0, 1);
-    for (auto cmd : cmds)
+    write(cmds[CHANNEL_NORMAL].empty() ? 0 : 1, 1);
+    write(cmds[CHANNEL_MATERIAL].empty() ? 0 : 1, 1);
+    for (auto cmd : cmds[CHANNEL_DIFFUSE])
     {
         cmd->serialize();
     }
     write(RES_IMG_END, 8);
+    if (!cmds[CHANNEL_NORMAL].empty())
+    {
+        for (auto cmd : cmds[CHANNEL_NORMAL])
+        {
+            cmd->serialize();
+        }
+        write(RES_IMG_END, 8);
+    }
+    if (!cmds[CHANNEL_MATERIAL].empty())
+    {
+        for (auto cmd : cmds[CHANNEL_MATERIAL])
+        {
+            cmd->serialize();
+        }
+        write(RES_IMG_END, 8);
+    }
 }
 
 void sTexture::deserialize()
@@ -489,6 +530,8 @@ void sTexture::deserialize()
 
     bool hasNormalMap = readBits(1) ? true : false;
     bool hasMaterialMap = readBits(1) ? true : false;
+
+    int channel = CHANNEL_DIFFUSE;
 
     auto b = (uint8_t)readBits(8);
     while (b != RES_IMG_END)
@@ -507,8 +550,22 @@ void sTexture::deserialize()
             case RES_IMAGE: cmd = new sTextureCmdIMAGE(); break;
         }
         cmd->deserialize();
-        cmds.push_back(cmd);
+        cmds[channel].push_back(cmd);
         b = (uint8_t)readBits(8);
+
+        if (b == RES_IMG_END)
+        {
+            if (channel == CHANNEL_DIFFUSE && hasNormalMap)
+            {
+                channel = CHANNEL_NORMAL;
+                b = (uint8_t)readBits(8);
+            }
+            else if (channel == CHANNEL_NORMAL && hasMaterialMap)
+            {
+                channel = CHANNEL_MATERIAL;
+                b = (uint8_t)readBits(8);
+            }
+        }
     }
 }
 
@@ -519,11 +576,13 @@ sTexture* sTexture::copy() const
     pRet->w = w;
     pRet->h = h;
     
-    for (auto cmd : cmds)
+    for (int i = 0; i <= 3; ++i)
     {
-        pRet->cmds.push_back(cmd->copy());
+        for (auto cmd : cmds[i]) pRet->cmds[i].push_back(cmd->copy());
     }
 
-    pRet->bake();
+    pRet->bake(CHANNEL_DIFFUSE);
+    pRet->bake(CHANNEL_NORMAL);
+    pRet->bake(CHANNEL_MATERIAL);
     return pRet;
 }
