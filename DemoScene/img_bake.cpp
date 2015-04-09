@@ -240,25 +240,34 @@ void bevel(uint32_t color, int size, int fromX, int fromY, int toX, int toY)
     }
 }
 
-#define NORMAL_STRENGTH 2;
+#define NORMAL_STRENGTH 1
 
 void normalMap()
 {
-    auto pNewData = (uint32_t*)mem_alloc(img.w * img.h * 4); // We will waste that. who cares?
+    int s[9];
+    int *pS;
+#ifdef EDITOR
+    auto pNewData = new uint32_t[img.w * img.h];
+#else
+    auto pNewData = (uint32_t*)mem_alloc(img.w * img.h * 4);
+#endif
     for (int y = 0; y < img.h; ++y)
     {
         for (int x = 0; x < img.w; ++x)
         {
-            int k = y * img.w + x;
-            int kx = y * img.w + ((x + 1) % img.w);
-            int ky = ((y + 1) % img.h) * img.w + x;
+            pS = s;
+            for (int j = y + img.h - 1; j <= y + img.h + 1; ++j)
+            {
+                for (int i = x + img.w - 1; i <= x + img.w + 1; ++i)
+                {
+                    *pS = img.pData[(j % img.h) * img.w + (i % img.w)];
+                    *pS &= 0xff;
+                    ++pS;
+                }
+            }
 
-            int p = img.pData[k] & 0xff;
-            int px = img.pData[kx] & 0xff;
-            int py = img.pData[ky] & 0xff;
-
-            int nx = (p - px) * NORMAL_STRENGTH;
-            int ny = (p - py) * NORMAL_STRENGTH;
+            int nx = NORMAL_STRENGTH * -(s[2] - s[0] + 2 * (s[5] - s[3]) + s[8] - s[6]);
+            int ny = NORMAL_STRENGTH * -(s[6] - s[0] + 2 * (s[7] - s[1]) + s[8] - s[2]);
             int nz = 255;
 
             // Normalize
@@ -267,16 +276,25 @@ void normalMap()
 #else
             int len = (int)sqrt14((double)(nx * nx + ny * ny + nz * nz));
 #endif
-            nx = nx * 255 / len;
-            ny = ny * 255 / len;
-            nz = nz * 255 / len;
+            if (len > 0)
+            {
+                nx = nx * 255 / len;
+                ny = ny * 255 / len;
+                nz = nz * 255 / len;
 
-            // Bring back in range
-            nx = (nx + 255) / 2;
-            ny = (ny + 255) / 2;
-            nz = (nz + 255) / 2;
+                // Bring back in range
+                nx = (nx + 255) / 2;
+                ny = (ny + 255) / 2;
+                nz = (nz + 255) / 2;
+            }
+            else
+            {
+                nx = 128;
+                ny = 128;
+                nz = 255;
+            }
 
-            pNewData[k] =
+            pNewData[y * img.w + x] =
                 0xff000000 |
                 ((nz << 16) & 0xff0000) |
                 ((ny << 8) & 0xff00) |
@@ -284,4 +302,7 @@ void normalMap()
         }
     }
     mem_cpy(img.pData, pNewData, img.w * img.h * 4);
+#ifdef EDITOR
+    delete[] pNewData;
+#endif
 }

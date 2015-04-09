@@ -77,10 +77,21 @@ public:
     int downState[4];
     Vector2 onDownMousePos;
     Vector2 lastDragDiff;
-    bool bShowGrid = true;
+    bool bShowGrid = false;
     OAnimf cmdStackOffset = 0.f;
+
+    struct sLightInfo
+    {
+        Vector3 pos = {0, 0, 256};
+        float cb_padding = 0;
+    } lightInfo;
+    ID3D11Buffer* pLightBuffer = nullptr;
 
     int dataSize = 0;
 
     function<void(const res_Color&)> colorPickerCallback;
+
+    ID3D11PixelShader*          p2DLightingPS = nullptr;
+    Texture*                    pDefaultNormalMap = nullptr;
+    Texture*                    pDefaultMaterialMap = nullptr;
 };

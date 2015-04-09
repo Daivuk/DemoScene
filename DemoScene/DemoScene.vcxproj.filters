@@ -22,8 +22,4 @@
     <ClInclude Include="ds_string.h" />
     <ClInclude Include="res_data.h" />
   </ItemGroup>
-  <ItemGroup>
-    <FxCompile Include="2dps.hlsl" />
-    <FxCompile Include="2dvs.hlsl" />
-  </ItemGroup>
 </Project>

@@ -21,7 +21,7 @@ int CALLBACK WinMain(
     )
 {
     OSettings->setGameName("Demo Scene Resources Editor");
-    OSettings->setResolution({1024, 600});
+    OSettings->setResolution({1280, 720});
 
     onut::run([]
     {

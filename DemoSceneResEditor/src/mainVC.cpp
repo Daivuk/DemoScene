@@ -28,6 +28,17 @@ MainVC::MainVC()
     : uiContext({(float)OSettings->getResolution().x, (float)OSettings->getResolution().y})
     , uiScreen("../../assets/ui/main.json")
 {
+    // Custom 2d lighting shader
+    p2DLightingPS = ORenderer->create2DShader("2dLightingps.cso");
+    uint8_t normalData[] = {128, 128, 255, 255};
+    uint8_t materialData[] = {0, 0, 0, 255};
+    pDefaultNormalMap = Texture::createFromData({1, 1}, normalData, false);
+    pDefaultMaterialMap = Texture::createFromData({1, 1}, materialData, false);
+    D3D11_BUFFER_DESC cbDesc = CD3D11_BUFFER_DESC(sizeof(lightInfo), D3D11_BIND_CONSTANT_BUFFER, D3D11_USAGE_DYNAMIC, D3D11_CPU_ACCESS_WRITE);
+    D3D11_SUBRESOURCE_DATA initData{&lightInfo, 0, 0};
+    auto ret = ORenderer->getDevice()->CreateBuffer(&cbDesc, &initData, &pLightBuffer);
+    assert(ret == S_OK);
+
     // create UI styles
     createUIStyles(&uiContext);
 
@@ -96,7 +107,46 @@ MainVC::MainVC()
             // Render with shaders and shit
             if (workingTexture->texture[CHANNEL_DIFFUSE])
             {
+                OSB->end();
+                ID3D11PixelShader* pPrevShader = nullptr;
+                ID3D11ClassInstance* pPrevClassInstance = nullptr;
+                UINT prevNumClass = 0;
+                ORenderer->getDeviceContext()->PSGetShader(&pPrevShader, &pPrevClassInstance, &prevNumClass);
+                ORenderer->getDeviceContext()->PSSetShader(p2DLightingPS, nullptr, 0);
+                OSB->begin();
+                if (workingTexture->texture[CHANNEL_NORMAL])
+                {
+                    workingTexture->texture[CHANNEL_NORMAL]->bind(1);
+                }
+                else
+                {
+                    pDefaultNormalMap->bind(1);
+                }
+                if (workingTexture->texture[CHANNEL_MATERIAL])
+                {
+                    workingTexture->texture[CHANNEL_MATERIAL]->bind(2);
+                }
+                else
+                {
+                    pDefaultNormalMap->bind(2);
+                }
+
+                // Pass in constant buffer
+                auto worldRect = onut::UI2Onut(uiPnlTexture->getWorldRect(uiContext));
+                auto screenCenter = worldRect.Center();
+                auto prevPos = lightInfo.pos;
+                lightInfo.pos = lightInfo.pos + Vector3(screenCenter);
+                D3D11_MAPPED_SUBRESOURCE map;
+                ORenderer->getDeviceContext()->Map(pLightBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &map);
+                memcpy(map.pData, &lightInfo, sizeof(lightInfo));
+                ORenderer->getDeviceContext()->Unmap(pLightBuffer, 0);
+                lightInfo.pos = prevPos;
+                ORenderer->getDeviceContext()->PSSetConstantBuffers(0, 1, &pLightBuffer);
+
                 OSB->drawRect(workingTexture->texture[CHANNEL_DIFFUSE], orect);
+                OSB->end();
+                ORenderer->getDeviceContext()->PSSetShader(pPrevShader, &pPrevClassInstance, prevNumClass);
+                OSB->begin();
             }
         }
         else
@@ -647,6 +697,15 @@ void MainVC::update()
                     workingTexture->bake(workingChannel);
                 }
             }
+        }
+
+        // Move light
+        if (OInput->isStateDown(DIK_SPACE) && OInput->isStateDown(DIK_MOUSEB2))
+        {
+            // Pass in constant buffer
+            auto worldRect = onut::UI2Onut(uiPnlTexture->getWorldRect(uiContext));
+            auto screenCenter = worldRect.Center();
+            lightInfo.pos = Vector3(OInput->mousePosf - screenCenter, 256);
         }
     }
     if (OInput->isStateJustDown(DIK_G))

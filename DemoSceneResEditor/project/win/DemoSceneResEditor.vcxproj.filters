@@ -15,4 +15,14 @@
     <ClInclude Include="..\..\..\DemoScene\img_bake.h" />
     <ClInclude Include="..\..\..\DemoScene\compress.h" />
   </ItemGroup>
+  <ItemGroup>
+    <Filter Include="shaders">
+      <UniqueIdentifier>{1adbc20f-7717-4574-a9ec-91a13ee78796}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="..\..\src\2dlightingps.hlsl">
+      <Filter>shaders</Filter>
+    </FxCompile>
+  </ItemGroup>
 </Project>
