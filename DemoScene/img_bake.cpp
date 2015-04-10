@@ -246,6 +246,7 @@ void normalMap()
 {
     int s[9];
     int *pS;
+    int avg;
 #ifdef EDITOR
     auto pNewData = new uint32_t[img.w * img.h];
 #else
@@ -294,8 +295,21 @@ void normalMap()
                 nz = 255;
             }
 
+            // Ambient, a bit slower. Sample 5x5
+            avg = 0;
+            for (int j = y + img.h - 4; j <= y + img.h + 4; ++j)
+            {
+                for (int i = x + img.w - 4; i <= x + img.w + 4; ++i)
+                {
+                    avg += img.pData[(j % img.h) * img.w + (i % img.w)] & 0xff;
+                }
+            }
+            avg /= 9 * 9;
+            avg = avg - s[4];
+            avg = avg * 350 / 255;
+            avg = 255 - clamp(avg, 0, 255);
             pNewData[y * img.w + x] =
-                0xff000000 |
+                ((avg << 24) & 0xff000000) |
                 ((nz << 16) & 0xff0000) |
                 ((ny << 8) & 0xff00) |
                 (nx & 0xff);

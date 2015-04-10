@@ -151,7 +151,14 @@ MainVC::MainVC()
         }
         else
         {
-            OSB->drawRectWithUVs(OGetTexture("dottedLine.png"), orect, {0, 0, orect.z / 16, orect.w / 16}, g_toolBtnHoverColor);
+            if (workingChannel != CHANNEL_DIFFUSE)
+            {
+                OSB->drawRect(nullptr, orect, Color::Black);
+            }
+            else
+            {
+                OSB->drawRectWithUVs(OGetTexture("dottedLine.png"), orect, {0, 0, orect.z / 16, orect.w / 16}, g_toolBtnHoverColor);
+            }
             if (workingTexture->texture[workingChannel])
             {
                 OSB->drawRect(workingTexture->texture[workingChannel], orect);
@@ -233,7 +240,7 @@ MainVC::MainVC()
     for (auto& kv : cmdControls)
     {
         kv.second->retain();
-        kv.second->behavior = eUICheckBehavior::EXCLUSIVE;
+        kv.second->behavior = eUICheckBehavior::CHK_OPTIONAL;
         kv.second->remove();
     }
     pnlTexture = uiTexture->getChild("pnlTexture");
@@ -334,8 +341,7 @@ MainVC::MainVC()
 
         auto selected = getSelectedTexture();
         auto index = selected.index;
-        if (index < res_textures.size()) ++index;
-        uiTextures->insertAfter(pSelectBox, selected.selectBox);
+        uiTextures->insertAt(pSelectBox, index);
         res_textures.insert(res_textures.begin() + index, pTexture);
 
         pSelectBox->setIsChecked(true);
@@ -715,6 +721,14 @@ void MainVC::update()
     if (OInput->isStateJustDown(DIK_S) && OInput->isStateDown(DIK_LCONTROL))
     {
         save();
+    }
+    if (OInput->isStateJustDown(DIK_ESCAPE))
+    {
+        auto selectedCmd = getSelectedCmd();
+        if (selectedCmd.cmd)
+        {
+            selectedCmd.selectBox->setIsChecked(false);
+        }
     }
 
     // Update the little save popup position
@@ -1227,6 +1241,7 @@ void MainVC::updateTextureEdit(const Vector2& diff, const Vector2& mousePos)
             Vector2 p{(float)pCmd->x, (float)pCmd->y};
             float dist = Vector2::Distance(p, mousePos);
             pCmd->radius = downState[0] + ((int)dist - downState[1]);
+            pCmd->radius = clamp(pCmd->radius, 1, 256);
         }
     }
     else if (dynamic_cast<sTextureCmdBEVEL_CIRCLE*>(cmd))
@@ -1242,6 +1257,7 @@ void MainVC::updateTextureEdit(const Vector2& diff, const Vector2& mousePos)
             Vector2 p{(float)pCmd->x, (float)pCmd->y};
             float dist = Vector2::Distance(p, mousePos);
             pCmd->radius = downState[0] + ((int)dist - downState[1]);
+            pCmd->radius = clamp(pCmd->radius, 1, 256);
         }
     }
     else if (dynamic_cast<sTextureCmdLINE*>(cmd))

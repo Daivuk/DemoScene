@@ -179,6 +179,8 @@ void sTexture::bake(int channel)
         auto normalData = new uint32_t[w * h];
         memcpy(normalData, data[channel], w * h * 4);
         img.pData = normalData;
+        img.w = w;
+        img.h = h;
         normalMap();
         texture[channel] = Texture::createFromData({w, h}, (uint8_t*)normalData);
         delete[] normalData;
@@ -560,7 +562,7 @@ void sTexture::deserialize()
                 channel = CHANNEL_NORMAL;
                 b = (uint8_t)readBits(8);
             }
-            else if (channel == CHANNEL_NORMAL && hasMaterialMap)
+            else if ((channel == CHANNEL_NORMAL || channel == CHANNEL_DIFFUSE) && hasMaterialMap)
             {
                 channel = CHANNEL_MATERIAL;
                 b = (uint8_t)readBits(8);
