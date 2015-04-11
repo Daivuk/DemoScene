@@ -42,15 +42,57 @@ uint32_t blendColors(uint32_t src, uint32_t dst)
         ((aDst << 24) & 0xff000000);
 }
 
+enum eTextureChannel
+{
+    CHANNEL_DIFFUSE = 0,
+    CHANNEL_NORMAL = 1,
+    CHANNEL_MATERIAL = 2
+};
+
+void applyState(int pixelIndex, int edgeDist, uint32_t srcColor)
+{
+    auto percent = edgeDist - img.bakeState.bevel;
+    if (img.bakeState.bevel)
+    {
+        percent = percent * 255 / img.bakeState.bevel;
+    }
+    else
+    {
+        percent = 0;
+    }
+    if (!img.bakeState.invBevel)
+    {
+        percent = 255 - percent;
+    }
+    percent = clamp(percent, 0, 255);
+
+    // Diffuse
+    uint32_t col = (srcColor & 0x00ffffff) | ((percent << 24) & 0xff000000);
+    img.pData[CHANNEL_DIFFUSE][pixelIndex] = blendColors(col, img.pData[CHANNEL_DIFFUSE][pixelIndex]);
+
+    // Normal
+    int32_t normal = (int32_t)img.pData[CHANNEL_NORMAL][pixelIndex];
+    normal += img.bakeState.raise * percent / 255;
+    img.pData[CHANNEL_NORMAL][pixelIndex] = (uint32_t)normal;
+
+    // Material
+    auto specular = clamp(img.bakeState.specular * 255 / 100, 0, 255);
+    auto shininess = clamp(img.bakeState.shininess * 255 / 100, 0, 255);
+    auto selfIllum = clamp(img.bakeState.selfIllum * 255 / 100, 0, 255);
+    col = 
+        (specular & 0x000000ff) |
+        ((shininess << 8) & 0x0000ff00) |
+        ((selfIllum << 16) & 0x00ff0000) |
+        ((percent << 24) & 0xff000000);
+    img.pData[CHANNEL_MATERIAL][pixelIndex] = blendColors(col, img.pData[CHANNEL_MATERIAL][pixelIndex]);
+}
+
 void fill(uint32_t color)
 {
     int size = img.w * img.h;
-    auto pImg = img.pData;
-    while (size)
+    for (int i = 0; i < size; ++i)
     {
-        *pImg = blendColors(color, *pImg);
-        --size;
-        ++pImg;
+        applyState(i, 0, color);
     }
 }
 
@@ -64,13 +106,10 @@ int pow(int val, int exp)
     return ret;
 }
 
-#define EDGE_SIZE 1
-
-void drawCircle(int cx, int cy, int radius, uint32_t color, int edgeSize)
+void drawCircle(int cx, int cy, int radius, uint32_t color)
 {
     int x = 0, y = 0;
     int i = 0;
-    int percent;
     while (i < img.w * img.h)
     {
         x = i % img.w;
@@ -78,23 +117,12 @@ void drawCircle(int cx, int cy, int radius, uint32_t color, int edgeSize)
         int dist = (x - cx) * (x - cx) + (y - cy) * (y - cy);
         if (dist <= radius * radius)
         {
-            uint32_t col = color;
-
-            if (dist >= (radius - edgeSize) * (radius - edgeSize) && radius > edgeSize)
-            {
-                percent = dist - (radius - edgeSize) * (radius - edgeSize);
-                percent *= 255;
-                percent = 255 - percent / ((radius * radius) - (radius - edgeSize) * (radius - edgeSize));
-            }
-            else
-            {
-                percent = 255;
-            }
-
-            percent = percent * ((color >> 24) & 0xff) / 255;
-            col = (color & 0x00ffffff) | ((percent << 24) & 0xff000000);
-
-            *(img.pData + i) = blendColors(col, *(img.pData + i));
+#ifdef EDITOR
+            dist = (int)std::sqrt((double)dist);
+#else
+            dist = (int)sqrt14((double)dist);
+#endif
+            applyState(i, radius - dist, color);
         }
         ++i;
     }
@@ -112,12 +140,11 @@ int distance(int x1, int y1, int x2, int y2)
 
 void drawLine(int fromX, int fromY,
               int toX, int toY,
-              uint32_t color, int thick)
+              uint32_t color, int thick, bool roundCorners)
 {
     int x = 0, y = 0;
     int i = 0;
     int segLen = distance(fromX, fromY, toX, toY);
-    int percent;
     while (i < img.w * img.h)
     {
         x = i % img.w;
@@ -126,10 +153,12 @@ void drawLine(int fromX, int fromY,
         int dist;
         if (t < 0 || segLen == 0)
         {
+            if (!roundCorners) continue;
             dist = distance(x, y, fromX, fromY);
         }
         else if (t > segLen)
         {
+            if (!roundCorners) continue;
             dist = distance(x, y, toX, toY);
         }
         else
@@ -140,23 +169,12 @@ void drawLine(int fromX, int fromY,
         }
         if (dist <= thick * thick)
         {
-            uint32_t col = color;
-
-            if (dist >= (thick - EDGE_SIZE) * (thick - EDGE_SIZE) && thick > EDGE_SIZE)
-            {
-                percent = dist - (thick - EDGE_SIZE) * (thick - EDGE_SIZE);
-                percent *= 255;
-                percent = 255 - percent / ((thick * thick) - (thick - EDGE_SIZE) * (thick - EDGE_SIZE));
-            }
-            else
-            {
-                percent = 255;
-            }
-
-            percent = percent * ((color >> 24) & 0xff) / 255;
-            col = (color & 0x00ffffff) | ((percent << 24) & 0xff000000);
-
-            *(img.pData + i) = blendColors(col, *(img.pData + i));
+#ifdef EDITOR
+            dist = (int)std::sqrt((double)dist);
+#else
+            dist = (int)sqrt14((double)dist);
+#endif
+            applyState(i, thick - dist, color);
         }
         ++i;
     }
@@ -179,63 +197,43 @@ void fillRect(uint32_t color, int fromX, int fromY, int toX, int toY)
     {
         for (int x = fromX; x < toX; ++x)
         {
-            img.pData[y * img.w + x] = blendColors(color, img.pData[y * img.w + x]);
+            applyState(y * img.w + x, 0, color);
         }
     }
 }
 
-void putImg(uint32_t color, int fromX, int fromY, int toX, int toY, uint32_t* pSrc, int srcW, int srcH)
+void putImg(uint32_t color, int fromX, int fromY, int toX, int toY, 
+            uint32_t* pSrcDiffuse, 
+            uint32_t* pSrcNormal,
+            uint32_t* pSrcMaterial,
+            int srcW, int srcH)
 {
     fromX = clamp(fromX, 0, img.w);
     fromY = clamp(fromY, 0, img.h);
     toX = clamp(toX, 0, img.w);
     toY = clamp(toY, 0, img.h);
+    auto prevState = img.bakeState;
     for (int y = fromY; y < toY; ++y)
     {
         for (int x = fromX; x < toX; ++x)
         {
             int srcX = (x - fromX) % srcW;
             int srcY = (y - fromY) % srcH;
-            uint32_t src = pSrc[srcY * srcW + srcX];
-            src = 
+            uint32_t src = pSrcDiffuse[srcY * srcW + srcX];
+            int32_t normal = pSrcNormal[srcY * srcW + srcX];
+            uint32_t material = pSrcMaterial[srcY * srcW + srcX] * 100;
+            src =
                 ((src & 0xff) * (color & 0xff) / 255) |
                 (((((src >> 8) & 0xff) * ((color >> 8) & 0xff) / 255) << 8) & 0xff00) |
                 (((((src >> 16) & 0xff) * ((color >> 16) & 0xff) / 255) << 16) & 0xff0000) |
                 (((((src >> 24) & 0xff) * ((color >> 24) & 0xff) / 255) << 24) & 0xff000000);
-            img.pData[y * img.w + x] = blendColors(src, img.pData[y * img.w + x]);
-        }
-    }
-}
-
-void bevel(uint32_t color, int size, int fromX, int fromY, int toX, int toY)
-{
-    uint32_t col;
-    for (int y = fromY; y < toY; ++y)
-    {
-        if (y < 0) continue;
-        if (y >= img.h) return;
-        for (int x = fromX; x < toX; ++x)
-        {
-            if (x < 0) continue;
-            if (x >= img.w) break;
-            if (x >= fromX && x < toX && y >= fromY && y < toY)
-            {
-                int dist = x - fromX;
-                if (y - fromY < dist) dist = y - fromY;
-                if (toX - x - 1 < dist) dist = toX - x - 1;
-                if (toY - y - 1 < dist) dist = toY - y - 1;
-                if (dist < size)
-                {
-                    int k = y * img.w + x;
-                    int percent = 255 - dist * 255 / size;
-                    //    percent = percent * percent / 255;
-
-                    percent = percent * ((color >> 24) & 0xff) / 255;
-                    col = (color & 0x00ffffff) | ((percent << 24) & 0xff000000);
-
-                    img.pData[k] = blendColors(col, img.pData[k]);
-                }
-            }
+            img.bakeState = prevState;
+            img.bakeState.raise += normal;
+            img.bakeState.specular = (material & 0xff) * 100 / 255;
+            img.bakeState.shininess = ((material >> 8) & 0xff) * 100 / 255;
+            img.bakeState.selfIllum = ((material >> 16) & 0xff) * 100 / 255;
+            applyState(y * img.w + x, 0, src);
+            img.bakeState = prevState;
         }
     }
 }
@@ -261,7 +259,8 @@ void normalMap()
             {
                 for (int i = x + img.w - 1; i <= x + img.w + 1; ++i)
                 {
-                    *pS = (int32_t)img.pData[(j % img.h) * img.w + (i % img.w)];
+                    *pS = img.pData[CHANNEL_NORMAL][(j % img.h) * img.w + (i % img.w)];
+                    *pS &= 0xff;
                     ++pS;
                 }
             }
@@ -300,7 +299,7 @@ void normalMap()
             {
                 for (int i = x + img.w - 4; i <= x + img.w + 4; ++i)
                 {
-                    avg += (int32_t)img.pData[(j % img.h) * img.w + (i % img.w)] & 0xff;
+                    avg += img.pData[CHANNEL_NORMAL][(j % img.h) * img.w + (i % img.w)] & 0xff;
                 }
             }
             avg /= 9 * 9;
@@ -314,7 +313,7 @@ void normalMap()
                 (nx & 0xff);
         }
     }
-    mem_cpy(img.pData, pNewData, img.w * img.h * 4);
+    mem_cpy(img.pData[CHANNEL_NORMAL], pNewData, img.w * img.h * 4);
 #ifdef EDITOR
     delete[] pNewData;
 #endif

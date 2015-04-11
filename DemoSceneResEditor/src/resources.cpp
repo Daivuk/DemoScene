@@ -135,7 +135,7 @@ void sTexture::bake()
             else if (dynamic_cast<sTextureCmdLINE*>(cmd))
             {
                 auto pCmd = (sTextureCmdLINE*)cmd;
-                drawLine(pCmd->x1, pCmd->y1, pCmd->x2, pCmd->y2, packColor(pCmd->color), pCmd->size);
+                drawLine(pCmd->x1, pCmd->y1, pCmd->x2, pCmd->y2, packColor(pCmd->color), pCmd->size, true);
             }
             else if (dynamic_cast<sTextureCmdRECT*>(cmd))
             {
@@ -153,13 +153,11 @@ void sTexture::bake()
                 if (pCmd->imgId < (int)res_textures.size())
                 {
                     auto srcTex = res_textures[pCmd->imgId];
-                    for (int i = 0; i < 3; ++i)
-                    {
-                        if (srcTex->data[i])
-                        {
-                            putImg(packColor(pCmd->color), pCmd->x1, pCmd->y1, pCmd->x2, pCmd->y2, srcTex->data[i], srcTex->w, srcTex->h);
-                        }
-                    }
+                    putImg(packColor(pCmd->color), pCmd->x1, pCmd->y1, pCmd->x2, pCmd->y2, 
+                           srcTex->data[0],
+                           srcTex->data[1],
+                           srcTex->data[2],
+                           srcTex->w, srcTex->h);
                 }
             }
         }
@@ -172,7 +170,10 @@ void sTexture::bake()
         {
             auto normalData = new uint32_t[w * h];
             memcpy(normalData, data[CHANNEL_NORMAL], w * h * 4);
+            auto prev = img.pData[CHANNEL_NORMAL];
+            img.pData[CHANNEL_NORMAL] = normalData;
             normalMap();
+            img.pData[CHANNEL_NORMAL] = prev;
             texture[CHANNEL_NORMAL] = Texture::createFromData({w, h}, (uint8_t*)normalData);
             delete[] normalData;
         }

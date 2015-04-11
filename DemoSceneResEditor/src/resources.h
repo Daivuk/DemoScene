@@ -69,7 +69,6 @@ struct sTextureCmdRECT : public sTextureCmd
     eRES_CMD getType() override { return RES_RECT; }
     void serialize() override;
     void deserialize() override;
-    void prepare() override;
 };
 
 struct sTextureCmdCIRCLE : public sTextureCmd

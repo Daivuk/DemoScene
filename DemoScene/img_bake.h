@@ -44,6 +44,7 @@ struct sImgContext
         int specular = 0;
         int shininess = 0;
         int selfIllum = 0;
+        bool invBevel = false;
     } bakeState;
 };
 
@@ -53,12 +54,15 @@ int unpackPos(uint8_t pos);
 uint32_t blendColors(uint32_t src, uint32_t dst);
 void fill(uint32_t color);
 int pow(int val, int exp);
-void drawCircle(int cx, int cy, int radius, uint32_t color, int edgeSize = 1);
+void drawCircle(int cx, int cy, int radius, uint32_t color);
 int dot(int x1, int y1, int x2, int y2);
 int distance(int x1, int y1, int x2, int y2);
-void drawLine(int fromX, int fromY, int toX, int toY, uint32_t color, int thick);
+void drawLine(int fromX, int fromY, int toX, int toY, uint32_t color, int thick, bool roundCorners);
 int clamp(int x, int min, int max);
 void fillRect(uint32_t color, int fromX, int fromY, int toX, int toY);
-void bevel(uint32_t color, int size, int fromX, int fromY, int toX, int toY);
 void normalMap();
-void putImg(uint32_t color, int fromX, int fromY, int toX, int toY, uint32_t* pSrc, int srcW, int srcH);
+void putImg(uint32_t color, int fromX, int fromY, int toX, int toY, 
+            uint32_t* pSrcDiffuse,
+            uint32_t* pSrcNormal,
+            uint32_t* pSrcMaterial,
+            int srcW, int srcH);

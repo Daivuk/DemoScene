@@ -30,10 +30,6 @@ float* transforms;
 
 auto vertSize = (3 + 3 + 2);
 
-bool bHasNormalMap;
-bool bHasMaterialMap;
-int channel;
-
 struct sMeshQuad
 {
     sMeshQuad *pNext;
@@ -45,7 +41,7 @@ struct sMeshContext
     sMeshQuad *pQuads;
 } mesh;
 
-void textureFromData(sTexture& out, const uint8_t* pData, UINT w, UINT h)
+void textureFromData(sTexture& out, const uint8_t* pData, UINT w, UINT h, int channel)
 {
     ID3D11Texture2D* pTexture;
 
@@ -261,12 +257,17 @@ void createImg()
     int h = readBits(3) + 3;
     w = pow(2, w);
     h = pow(2, h);
-    img.pData = (uint32_t*)mem_alloc(w * h * 4);
+    img.pData[0] = (uint32_t*)mem_alloc(w * h * 4);
+    img.pData[1] = (uint32_t*)mem_alloc(w * h * 4);
+    img.pData[2] = (uint32_t*)mem_alloc(w * h * 4);
     img.w = w;
     img.h = h;
-    bHasNormalMap = readBits(1) ? true : false;
-    bHasMaterialMap = readBits(1) ? true : false;
-    channel = RES_DIFFUSE;
+    img.bakeState.bevel = 0;
+    img.bakeState.invBevel = false;
+    img.bakeState.raise = 0;
+    img.bakeState.selfIllum = 0;
+    img.bakeState.shininess = 0;
+    img.bakeState.specular = 0;
 }
 
 uint8_t resDataCompressed[] = {
@@ -379,7 +380,7 @@ void res_load()
     int curCamera = 0;
 
     // Allocate
-    res_textures = (sTexture*)mem_alloc(sizeof(sTexture) * res_textureCount);
+    res_textures = (sTexture*)mem_alloc(sizeof(sTexture) * res_textureCount * 3);
     res_meshes = (sMesh*)mem_alloc(sizeof(sMesh) * res_meshCount);
     res_models = (sModel*)mem_alloc(sizeof(sModel) * res_modelCount);
     res_cameras = (sCamera*)mem_alloc(sizeof(sCamera) * res_cameraCount);
@@ -404,24 +405,28 @@ void res_load()
         switch (readBits(8))
         {
             case RES_IMG:
+            {
                 createImg();
                 break;
+            }
             case RES_FILL:
+            {
                 fill(colorFromPalette(readBits(8)));
                 break;
+            }
+            case RES_LINE:
+            {
+                auto colorId = readBits(8);
+                readRect();
+                auto thickness = readBits(6) + 1;
+                drawLine(g_x1, g_y1, g_x2, g_y2, colorFromPalette(colorId), thickness, true);
+                break;
+            }
             case RES_RECT:
             {
                 auto colorId = readBits(8);
                 readRect();
                 fillRect(colorFromPalette(colorId), g_x1, g_y1, g_x2, g_y2);
-                break;
-            }
-            case RES_BEVEL:
-            {
-                auto colorId = readBits(8);
-                readRect();
-                auto bevelSize = readBits(6) + 1;
-                bevel(colorFromPalette(colorId), bevelSize, g_x1, g_y1, g_x2, g_y2);
                 break;
             }
             case RES_CIRCLE:
@@ -432,45 +437,24 @@ void res_load()
                 drawCircle(g_x1, g_y1, radius, colorFromPalette(colorId));
                 break;
             }
-            case RES_BEVEL_CIRCLE:
-            {
-                auto colorId = readBits(8);
-                readPosition();
-                auto radius = readBits(8) + 1;
-                auto bevelSize = readBits(6) + 1;
-                drawCircle(g_x1, g_y1, radius, colorFromPalette(colorId), bevelSize);
-                break;
-            }
-            case RES_LINE:
-            {
-                auto colorId = readBits(8);
-                readRect();
-                auto thickness = readBits(6) + 1;
-                drawLine(g_x1, g_y1, g_x2, g_y2, colorFromPalette(colorId), thickness);
-                break;
-            }
             case RES_IMG_END:
             {
-                if (channel == RES_NORMAL)
-                {
-                    normalMap();
-                }
-                textureFromData(res_textures[curTexture], (uint8_t*)img.pData, img.w, img.h);
-                if (bHasNormalMap && channel == RES_DIFFUSE) ++channel;
-                else if (bHasMaterialMap && channel == RES_NORMAL) ++channel;
-                else curTexture++;
+                normalMap();
+                textureFromData(res_textures[curTexture], (uint8_t*)img.pData[0], img.w, img.h, 0);
+                textureFromData(res_textures[curTexture], (uint8_t*)img.pData[1], img.w, img.h, 1);
+                textureFromData(res_textures[curTexture], (uint8_t*)img.pData[2], img.w, img.h, 2);
+                ++curTexture;
                 break;
             }
-            case RES_NORMAL_MAP:
-                normalMap();
-                break;
             case RES_IMAGE:
             {
                 auto colorId = readBits(8);
                 readRect();
                 auto imgId = readBits(8);
                 putImg(colorFromPalette(colorId), g_x1, g_y1, g_x2, g_y2,
-                       res_textures[imgId].data[channel],
+                       res_textures[imgId].data[0],
+                       res_textures[imgId].data[1],
+                       res_textures[imgId].data[2],
                        res_textures[imgId].w,
                        res_textures[imgId].h);
                 break;
