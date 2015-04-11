@@ -261,8 +261,7 @@ void normalMap()
             {
                 for (int i = x + img.w - 1; i <= x + img.w + 1; ++i)
                 {
-                    *pS = img.pData[(j % img.h) * img.w + (i % img.w)];
-                    *pS &= 0xff;
+                    *pS = (int32_t)img.pData[(j % img.h) * img.w + (i % img.w)];
                     ++pS;
                 }
             }
@@ -301,7 +300,7 @@ void normalMap()
             {
                 for (int i = x + img.w - 4; i <= x + img.w + 4; ++i)
                 {
-                    avg += img.pData[(j % img.h) * img.w + (i % img.w)] & 0xff;
+                    avg += (int32_t)img.pData[(j % img.h) * img.w + (i % img.w)] & 0xff;
                 }
             }
             avg /= 9 * 9;

@@ -11,13 +11,10 @@ enum eRES_CMD : uint8_t
 {
     RES_IMG,
     RES_FILL,
-    RES_RECT,
-    RES_BEVEL,
-    RES_CIRCLE,
-    RES_BEVEL_CIRCLE,
     RES_LINE,
-    RES_GRADIENT,
-    RES_NORMAL_MAP,
+    RES_RECT,
+    RES_CIRCLE,
+    RES_IMAGE,
     RES_IMG_END,
 
     RES_MESH,
@@ -32,15 +29,22 @@ enum eRES_CMD : uint8_t
     RES_SUN_LIGHT,
     RES_AMBIENT,
 
-    RES_IMAGE,
     RES_END,
 };
 
 struct sImgContext
 {
-    uint32_t* pData;
+    uint32_t* pData[3];
     int w;
     int h;
+    struct sBakeState
+    {
+        int bevel = 0;
+        int raise = 0;
+        int specular = 0;
+        int shininess = 0;
+        int selfIllum = 0;
+    } bakeState;
 };
 
 extern sImgContext img;

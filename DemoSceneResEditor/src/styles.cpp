@@ -53,6 +53,11 @@ void createUIStyles(onut::UIContext* pContext)
         OSB->drawRect(nullptr, onut::UI2Onut(rect), g_panelBGColor);
     });
 
+    pContext->addStyle<onut::UIPanel>("color", [](const onut::UIPanel* pPanel, const onut::sUIRect& rect)
+    {
+        OSB->drawRect(nullptr, onut::UI2Onut(rect), onut::UI2Onut(pPanel->color));
+    });
+
     pContext->addStyle<onut::UIPanel>("darken", [](const onut::UIPanel* pPanel, const onut::sUIRect& rect)
     {
         OSB->drawRect(nullptr, onut::UI2Onut(rect), g_panelDarkenBGColor);

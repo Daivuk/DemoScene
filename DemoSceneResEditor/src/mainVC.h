@@ -62,8 +62,6 @@ public:
     UIControl* uiColorPickerPreviousSample;
 
     sTexture* workingTexture;
-    int workingChannel = 0;
-
     map<eRES_CMD, UICheckBox*> cmdControls;
     UIControl* uiCmdStack;
     UITextBox* uiTextureW;
@@ -92,6 +90,4 @@ public:
     function<void(const res_Color&)> colorPickerCallback;
 
     ID3D11PixelShader*          p2DLightingPS = nullptr;
-    Texture*                    pDefaultNormalMap = nullptr;
-    Texture*                    pDefaultMaterialMap = nullptr;
 };

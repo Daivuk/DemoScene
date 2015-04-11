@@ -32,8 +32,6 @@ MainVC::MainVC()
     p2DLightingPS = ORenderer->create2DShader("2dLightingps.cso");
     uint8_t normalData[] = {128, 128, 255, 255};
     uint8_t materialData[] = {0, 0, 0, 255};
-    pDefaultNormalMap = Texture::createFromData({1, 1}, normalData, false);
-    pDefaultMaterialMap = Texture::createFromData({1, 1}, materialData, false);
     D3D11_BUFFER_DESC cbDesc = CD3D11_BUFFER_DESC(sizeof(lightInfo), D3D11_BIND_CONSTANT_BUFFER, D3D11_USAGE_DYNAMIC, D3D11_CPU_ACCESS_WRITE);
     D3D11_SUBRESOURCE_DATA initData{&lightInfo, 0, 0};
     auto ret = ORenderer->getDevice()->CreateBuffer(&cbDesc, &initData, &pLightBuffer);
@@ -102,7 +100,7 @@ MainVC::MainVC()
     {
         auto state = pCheckBox->getState(uiContext);
         auto orect = UI2Onut(rect);
-        if (OInput->isStateDown(DIK_SPACE))
+    //    if (OInput->isStateDown(DIK_SPACE))
         {
             // Render with shaders and shit
             if (workingTexture->texture[CHANNEL_DIFFUSE])
@@ -114,22 +112,8 @@ MainVC::MainVC()
                 ORenderer->getDeviceContext()->PSGetShader(&pPrevShader, &pPrevClassInstance, &prevNumClass);
                 ORenderer->getDeviceContext()->PSSetShader(p2DLightingPS, nullptr, 0);
                 OSB->begin();
-                if (workingTexture->texture[CHANNEL_NORMAL])
-                {
-                    workingTexture->texture[CHANNEL_NORMAL]->bind(1);
-                }
-                else
-                {
-                    pDefaultNormalMap->bind(1);
-                }
-                if (workingTexture->texture[CHANNEL_MATERIAL])
-                {
-                    workingTexture->texture[CHANNEL_MATERIAL]->bind(2);
-                }
-                else
-                {
-                    pDefaultNormalMap->bind(2);
-                }
+                workingTexture->texture[CHANNEL_NORMAL]->bind(1);
+                workingTexture->texture[CHANNEL_MATERIAL]->bind(2);
 
                 // Pass in constant buffer
                 auto worldRect = onut::UI2Onut(uiPnlTexture->getWorldRect(uiContext));
@@ -149,7 +133,7 @@ MainVC::MainVC()
                 OSB->begin();
             }
         }
-        else
+   /*     else
         {
             if (workingChannel != CHANNEL_DIFFUSE)
             {
@@ -163,7 +147,7 @@ MainVC::MainVC()
             {
                 OSB->drawRect(workingTexture->texture[workingChannel], orect);
             }
-        }
+        }*/
     });
 
     uiContext.addStyle<UIPanel>("buttonSelection", [this](const onut::UIPanel* pCheckBox, const onut::sUIRect& rect)
@@ -205,38 +189,10 @@ MainVC::MainVC()
     uiSavedY = uiSaved->rect.position.y;
     uiSavedV = uiSaved->isVisible ? 1 : 0;
     cmdControls[eRES_CMD::RES_FILL] = uiInspectorTexture->getChild<UICheckBox>("chkCmdFILL");
-    cmdControls[eRES_CMD::RES_RECT] = uiInspectorTexture->getChild<UICheckBox>("chkCmdRECT");
-    cmdControls[eRES_CMD::RES_BEVEL] = uiInspectorTexture->getChild<UICheckBox>("chkCmdBEVEL");
-    cmdControls[eRES_CMD::RES_CIRCLE] = uiInspectorTexture->getChild<UICheckBox>("chkCmdCIRCLE");
-    cmdControls[eRES_CMD::RES_BEVEL_CIRCLE] = uiInspectorTexture->getChild<UICheckBox>("chkCmdBEVEL_CIRCLE");
     cmdControls[eRES_CMD::RES_LINE] = uiInspectorTexture->getChild<UICheckBox>("chkCmdLINE");
-    cmdControls[eRES_CMD::RES_NORMAL_MAP] = uiInspectorTexture->getChild<UICheckBox>("chkCmdNORMAL_MAP");
-    cmdControls[eRES_CMD::RES_GRADIENT] = uiInspectorTexture->getChild<UICheckBox>("chkCmdGRADIENT");
+    cmdControls[eRES_CMD::RES_RECT] = uiInspectorTexture->getChild<UICheckBox>("chkCmdRECT");
+    cmdControls[eRES_CMD::RES_CIRCLE] = uiInspectorTexture->getChild<UICheckBox>("chkCmdCIRCLE");
     cmdControls[eRES_CMD::RES_IMAGE] = uiInspectorTexture->getChild<UICheckBox>("chkCmdIMAGE");
-    uiInspectorTexture->getChild<UIButton>("btnDiffuse")->onClick = [this](UIControl* c, const UIMouseEvent& e)
-    {
-        workingChannel = CHANNEL_DIFFUSE;
-        buildUIForTexture();
-        uiInspectorTexture->getChild<UIPanel>("channelSelection")->rect = c->rect;
-    };
-    uiInspectorTexture->getChild<UIButton>("btnNormal")->onClick = [this](UIControl* c, const UIMouseEvent& e)
-    {
-        workingChannel = CHANNEL_NORMAL;
-        buildUIForTexture();
-        uiInspectorTexture->getChild<UIPanel>("channelSelection")->rect = c->rect;
-    };
-    uiInspectorTexture->getChild<UIButton>("btnMaterial")->onClick = [this](UIControl* c, const UIMouseEvent& e)
-    {
-        workingChannel = CHANNEL_MATERIAL;
-        buildUIForTexture();
-        uiInspectorTexture->getChild<UIPanel>("channelSelection")->rect = c->rect;
-    };
-    uiInspectorTexture->getChild<UIButton>("btnDelChannel")->onClick = [this](UIControl* c, const UIMouseEvent& e)
-    {
-        workingTexture->cmds[workingChannel].clear();
-        workingTexture->bake(workingChannel);
-        buildUIForTexture();
-    };
     for (auto& kv : cmdControls)
     {
         kv.second->retain();
@@ -251,18 +207,14 @@ MainVC::MainVC()
         auto d = uiTextureW->getInt();
         pnlTexture->rect.size.x = (float)d;
         workingTexture->w = d;
-        workingTexture->bake(CHANNEL_DIFFUSE);
-        workingTexture->bake(CHANNEL_NORMAL);
-        workingTexture->bake(CHANNEL_MATERIAL);
+        workingTexture->bake();
     };
     uiTextureH->onTextChanged = [this](UITextBox* c, const UITextBoxEvent& e)
     {
         auto d = uiTextureH->getInt();
         pnlTexture->rect.size.y = (float)d;
         workingTexture->h = d;
-        workingTexture->bake(CHANNEL_DIFFUSE);
-        workingTexture->bake(CHANNEL_NORMAL);
-        workingTexture->bake(CHANNEL_MATERIAL);
+        workingTexture->bake();
     };
 
     // Events
@@ -270,34 +222,18 @@ MainVC::MainVC()
     {
         insertCmd(new sTextureCmdFILL(), cmdControls[eRES_CMD::RES_FILL]->copy());
     };
+    uiInspectorTexture->getChild("btnCmdLINE")->onClick = [this](UIControl* c, const UIMouseEvent& e)
+    {
+        insertCmd(new sTextureCmdLINE(), cmdControls[eRES_CMD::RES_LINE]->copy());
+    };
     uiInspectorTexture->getChild("btnCmdRECT")->onClick = [this](UIControl* c, const UIMouseEvent& e)
     {
         insertCmd(new sTextureCmdRECT(), cmdControls[eRES_CMD::RES_RECT]->copy());
-    };
-    uiInspectorTexture->getChild("btnCmdBEVEL")->onClick = [this](UIControl* c, const UIMouseEvent& e)
-    {
-        insertCmd(new sTextureCmdBEVEL(), cmdControls[eRES_CMD::RES_BEVEL]->copy());
     };
     uiInspectorTexture->getChild("btnCmdCIRCLE")->onClick = [this](UIControl* c, const UIMouseEvent& e)
     {
         insertCmd(new sTextureCmdCIRCLE(), cmdControls[eRES_CMD::RES_CIRCLE]->copy());
     };
-    uiInspectorTexture->getChild("btnCmdBEVEL_CIRCLE")->onClick = [this](UIControl* c, const UIMouseEvent& e)
-    {
-        insertCmd(new sTextureCmdBEVEL_CIRCLE(), cmdControls[eRES_CMD::RES_BEVEL_CIRCLE]->copy());
-    };
-    uiInspectorTexture->getChild("btnCmdLINE")->onClick = [this](UIControl* c, const UIMouseEvent& e)
-    {
-        insertCmd(new sTextureCmdLINE(), cmdControls[eRES_CMD::RES_LINE]->copy());
-    };
-    //uiInspectorTexture->getChild("btnCmdNORMAL_MAP")->onClick = [this](UIControl* c, const UIMouseEvent& e)
-    //{
-    //    insertCmd(new sTextureCmdNORMAL_MAP(), cmdControls[eRES_CMD::RES_NORMAL_MAP]->copy());
-    //};
-    //uiInspectorTexture->getChild("btnCmdGRADIENT")->onClick = [this](UIControl* c, const UIMouseEvent& e)
-    //{
-    //    insertCmd(new sTextureCmdGRADIENT(), cmdControls[eRES_CMD::RES_GRADIENT]->copy());
-    //};
     uiInspectorTexture->getChild("btnCmdIMAGE")->onClick = [this](UIControl* c, const UIMouseEvent& e)
     {
         insertCmd(new sTextureCmdIMAGE(), cmdControls[eRES_CMD::RES_IMAGE]->copy());
@@ -419,7 +355,7 @@ void hookColorPicker(UIControl* pCtrl, const std::string& childName, res_Color* 
                 (float)color.y / 255.f,
                 (float)color.z / 255.f,
                 (float)color.w / 255.f};
-            pMainVC->workingTexture->bake(pMainVC->workingChannel);
+            pMainVC->workingTexture->bake();
         });
     };
 }
@@ -437,7 +373,7 @@ void hookInteger(UIControl* pCtrl, const std::string& childName, int* pTarget, i
             pCtrl->setInt(correctedVal);
         }
         *pTarget = val;
-        pMainVC->workingTexture->bake(pMainVC->workingChannel);
+        pMainVC->workingTexture->bake();
     };
 }
 
@@ -448,49 +384,26 @@ void MainVC::hookCmd(sTextureCmd* cmd, UIControl* pCtrl)
         auto pCmd = (sTextureCmdFILL*)cmd;
         hookColorPicker(pCtrl, "color", &pCmd->color);
     }
-    else if (dynamic_cast<sTextureCmdRECT*>(cmd))
-    {
-        auto pCmd = (sTextureCmdRECT*)cmd;
-        hookColorPicker(pCtrl, "color", &pCmd->color);
-    }
-    else if (dynamic_cast<sTextureCmdBEVEL*>(cmd))
-    {
-        auto pCmd = (sTextureCmdBEVEL*)cmd;
-        hookColorPicker(pCtrl, "color", &pCmd->color);
-        hookInteger(pCtrl, "txtBevel", &pCmd->bevel, 1, 64);
-    }
-    else if (dynamic_cast<sTextureCmdCIRCLE*>(cmd))
-    {
-        auto pCmd = (sTextureCmdCIRCLE*)cmd;
-        hookColorPicker(pCtrl, "color", &pCmd->color);
-    }
-    else if (dynamic_cast<sTextureCmdBEVEL_CIRCLE*>(cmd))
-    {
-        auto pCmd = (sTextureCmdBEVEL_CIRCLE*)cmd;
-        hookColorPicker(pCtrl, "color", &pCmd->color);
-        hookInteger(pCtrl, "txtBevel", &pCmd->bevel, 1, 64);
-    }
     else if (dynamic_cast<sTextureCmdLINE*>(cmd))
     {
         auto pCmd = (sTextureCmdLINE*)cmd;
         hookColorPicker(pCtrl, "color", &pCmd->color);
         hookInteger(pCtrl, "txtSize", &pCmd->size, 1, 64);
     }
-    else if (dynamic_cast<sTextureCmdNORMAL_MAP*>(cmd))
+    else if (dynamic_cast<sTextureCmdRECT*>(cmd))
     {
-        auto pCmd = (sTextureCmdNORMAL_MAP*)cmd;
+        auto pCmd = (sTextureCmdRECT*)cmd;
+        hookColorPicker(pCtrl, "color", &pCmd->color);
     }
-    else if (dynamic_cast<sTextureCmdGRADIENT*>(cmd))
+    else if (dynamic_cast<sTextureCmdCIRCLE*>(cmd))
     {
-        auto pCmd = (sTextureCmdGRADIENT*)cmd;
-        hookColorPicker(pCtrl, "colorFrom", &pCmd->color1);
-        hookColorPicker(pCtrl, "colorTo", &pCmd->color1);
+        auto pCmd = (sTextureCmdCIRCLE*)cmd;
+        hookColorPicker(pCtrl, "color", &pCmd->color);
     }
     else if (dynamic_cast<sTextureCmdIMAGE*>(cmd))
     {
         auto pCmd = (sTextureCmdIMAGE*)cmd;
         hookColorPicker(pCtrl, "color", &pCmd->color);
-        hookInteger(pCtrl, "txtBevel", &pCmd->imgId, 0, 255);
     }
 }
 
@@ -500,12 +413,16 @@ void MainVC::insertCmd(sTextureCmd* pCmd, UIControl* pCtrl)
     pCtrl->pUserData = pCmd;
     auto selected = getSelectedCmd();
     auto index = selected.index;
-    if (index < workingTexture->cmds[workingChannel].size()) ++index;
+    if (!selected.selectBox)
+    {
+        index = workingTexture->cmds.size() - 1;
+    }
+    if (index < workingTexture->cmds.size()) ++index;
     uiCmdStack->insertAt(pCtrl, index);
-    workingTexture->cmds[workingChannel].insert(workingTexture->cmds[workingChannel].begin() + index, pCmd);
+    workingTexture->cmds.insert(workingTexture->cmds.begin() + index, pCmd);
     ((UICheckBox*)pCtrl)->setIsChecked(true);
 
-    workingTexture->bake(workingChannel);
+    workingTexture->bake();
 
     hookCmd(pCmd, pCtrl);
 }
@@ -627,8 +544,8 @@ void MainVC::update()
             {
                 uiContext.clearState();
                 uiCmdStack->remove(selected.selectBox);
-                workingTexture->cmds[workingChannel].erase(workingTexture->cmds[workingChannel].begin() + selected.index);
-                workingTexture->bake(workingChannel);
+                workingTexture->cmds.erase(workingTexture->cmds.begin() + selected.index);
+                workingTexture->bake();
             }
         }
 
@@ -652,9 +569,9 @@ void MainVC::update()
             auto endVal = cmdStackOffset.get();
             endVal -= 50.f;
             auto stackH = uiCmdStack->getWorldRect(uiContext).size.y;
-            if (endVal < (float)workingTexture->cmds[workingChannel].size() * -50.f + stackH)
+            if (endVal < (float)workingTexture->cmds.size() * -50.f + stackH)
             {
-                endVal = (float)workingTexture->cmds[workingChannel].size() * -50.f + stackH;
+                endVal = (float)workingTexture->cmds.size() * -50.f + stackH;
             }
             cmdStackOffset.start(curVal, endVal, .15f, OEaseOut);
         }
@@ -670,19 +587,19 @@ void MainVC::update()
             else if (OInput->isStateJustDown(DIK_DOWN) &&
                      OInput->isStateDown(DIK_LCONTROL))
             {
-                if (selectedCmd.index < workingTexture->cmds[workingChannel].size() - 1)
+                if (selectedCmd.index < workingTexture->cmds.size() - 1)
                 {
                     selectedCmd.selectBox->retain();
                     selectedCmd.selectBox->remove();
-                    workingTexture->cmds[workingChannel].erase(workingTexture->cmds[workingChannel].begin() + selectedCmd.index);
+                    workingTexture->cmds.erase(workingTexture->cmds.begin() + selectedCmd.index);
                     ++selectedCmd.index;
 
                     uiCmdStack->insertAt(selectedCmd.selectBox, selectedCmd.index);
-                    workingTexture->cmds[workingChannel].insert(workingTexture->cmds[workingChannel].begin() + selectedCmd.index, selectedCmd.cmd);
+                    workingTexture->cmds.insert(workingTexture->cmds.begin() + selectedCmd.index, selectedCmd.cmd);
 
                     selectedCmd.selectBox->release();
 
-                    workingTexture->bake(workingChannel);
+                    workingTexture->bake();
                 }
             }
             else if (OInput->isStateJustDown(DIK_UP) &&
@@ -692,15 +609,15 @@ void MainVC::update()
                 {
                     selectedCmd.selectBox->retain();
                     selectedCmd.selectBox->remove();
-                    workingTexture->cmds[workingChannel].erase(workingTexture->cmds[workingChannel].begin() + selectedCmd.index);
+                    workingTexture->cmds.erase(workingTexture->cmds.begin() + selectedCmd.index);
                     --selectedCmd.index;
 
                     uiCmdStack->insertAt(selectedCmd.selectBox, selectedCmd.index);
-                    workingTexture->cmds[workingChannel].insert(workingTexture->cmds[workingChannel].begin() + selectedCmd.index, selectedCmd.cmd);
+                    workingTexture->cmds.insert(workingTexture->cmds.begin() + selectedCmd.index, selectedCmd.cmd);
 
                     selectedCmd.selectBox->release();
 
-                    workingTexture->bake(workingChannel);
+                    workingTexture->bake();
                 }
             }
         }
@@ -742,17 +659,14 @@ void MainVC::shiftTextureReferences(int index, int inc)
 {
     for (auto texture : res_textures)
     {
-        for (auto channel = 0; channel < 3; ++channel)
+        for (auto cmd : texture->cmds)
         {
-            for (auto cmd : texture->cmds[channel])
+            if (cmd->getType() == RES_IMAGE)
             {
-                if (cmd->getType() == RES_IMAGE)
+                auto& id = ((sTextureCmdIMAGE*)cmd)->imgId;
+                if (id >= (int)index)
                 {
-                    auto& id = ((sTextureCmdIMAGE*)cmd)->imgId;
-                    if (id >= (int)index)
-                    {
-                        id += inc;
-                    }
+                    id += inc;
                 }
             }
         }
@@ -795,20 +709,17 @@ void MainVC::render()
             {
                 sTextureCmdFILL* pCmd = (sTextureCmdFILL*)cmd;
             }
+            else if (dynamic_cast<sTextureCmdLINE*>(cmd))
+            {
+                sTextureCmdLINE* pCmd = (sTextureCmdLINE*)cmd;
+                OPB->begin(ePrimitiveType::LINES);
+                OPB->draw({offset.x + (float)pCmd->x1, offset.y + (float)pCmd->y1}, Magenta);
+                OPB->draw({offset.x + (float)pCmd->x2, offset.y + (float)pCmd->y2}, Magenta);
+                OPB->end();
+            }
             else if (dynamic_cast<sTextureCmdRECT*>(cmd))
             {
                 sTextureCmdRECT* pCmd = (sTextureCmdRECT*)cmd;
-                OPB->begin(ePrimitiveType::LINE_STRIP);
-                OPB->draw({offset.x + (float)pCmd->x1, offset.y + (float)pCmd->y1}, Magenta);
-                OPB->draw({offset.x + (float)pCmd->x1, offset.y + (float)pCmd->y2}, Magenta);
-                OPB->draw({offset.x + (float)pCmd->x2, offset.y + (float)pCmd->y2}, Magenta);
-                OPB->draw({offset.x + (float)pCmd->x2, offset.y + (float)pCmd->y1}, Magenta);
-                OPB->draw({offset.x + (float)pCmd->x1, offset.y + (float)pCmd->y1}, Magenta);
-                OPB->end();
-            }
-            else if (dynamic_cast<sTextureCmdBEVEL*>(cmd))
-            {
-                sTextureCmdBEVEL* pCmd = (sTextureCmdBEVEL*)cmd;
                 OPB->begin(ePrimitiveType::LINE_STRIP);
                 OPB->draw({offset.x + (float)pCmd->x1, offset.y + (float)pCmd->y1}, Magenta);
                 OPB->draw({offset.x + (float)pCmd->x1, offset.y + (float)pCmd->y2}, Magenta);
@@ -835,25 +746,6 @@ void MainVC::render()
                     }, Magenta);
                 }
                 OPB->end();
-            }
-            else if (dynamic_cast<sTextureCmdBEVEL_CIRCLE*>(cmd))
-            {
-                sTextureCmdBEVEL_CIRCLE* pCmd = (sTextureCmdBEVEL_CIRCLE*)cmd;
-                OPB->begin(ePrimitiveType::LINES);
-                OPB->draw({offset.x + (float)pCmd->x - 4, offset.y + (float)pCmd->y - 4}, Magenta);
-                OPB->draw({offset.x + (float)pCmd->x + 4, offset.y + (float)pCmd->y + 4}, Magenta);
-                OPB->draw({offset.x + (float)pCmd->x + 4, offset.y + (float)pCmd->y - 4}, Magenta);
-                OPB->draw({offset.x + (float)pCmd->x - 4, offset.y + (float)pCmd->y + 4}, Magenta);
-                OPB->end();
-                OPB->begin(ePrimitiveType::LINE_STRIP);
-                for (int angle = 0; angle <= 360; angle += 10)
-                {
-                    OPB->draw({
-                        offset.x + (float)pCmd->x + cosf(DirectX::XMConvertToRadians((float)angle)) * (float)pCmd->radius,
-                        offset.y + (float)pCmd->y + sinf(DirectX::XMConvertToRadians((float)angle)) * (float)pCmd->radius
-                    }, Magenta);
-                }
-                OPB->end();
                 OPB->begin(ePrimitiveType::LINE_STRIP);
                 for (int angle = 0; angle <= 360; angle += 10)
                 {
@@ -862,29 +754,6 @@ void MainVC::render()
                         offset.y + (float)pCmd->y + sinf(DirectX::XMConvertToRadians((float)angle)) * (float)(pCmd->radius - pCmd->bevel)
                     }, Magenta);
                 }
-                OPB->end();
-            }
-            else if (dynamic_cast<sTextureCmdLINE*>(cmd))
-            {
-                sTextureCmdLINE* pCmd = (sTextureCmdLINE*)cmd;
-                OPB->begin(ePrimitiveType::LINES);
-                OPB->draw({offset.x + (float)pCmd->x1, offset.y + (float)pCmd->y1}, Magenta);
-                OPB->draw({offset.x + (float)pCmd->x2, offset.y + (float)pCmd->y2}, Magenta);
-                OPB->end();
-            }
-            else if (dynamic_cast<sTextureCmdNORMAL_MAP*>(cmd))
-            {
-                sTextureCmdNORMAL_MAP* pCmd = (sTextureCmdNORMAL_MAP*)cmd;
-            }
-            else if (dynamic_cast<sTextureCmdGRADIENT*>(cmd))
-            {
-                sTextureCmdGRADIENT* pCmd = (sTextureCmdGRADIENT*)cmd;
-                OPB->begin(ePrimitiveType::LINE_STRIP);
-                OPB->draw({offset.x + (float)pCmd->x1, offset.y + (float)pCmd->y1}, Magenta);
-                OPB->draw({offset.x + (float)pCmd->x1, offset.y + (float)pCmd->y2}, Magenta);
-                OPB->draw({offset.x + (float)pCmd->x2, offset.y + (float)pCmd->y2}, Magenta);
-                OPB->draw({offset.x + (float)pCmd->x2, offset.y + (float)pCmd->y1}, Magenta);
-                OPB->draw({offset.x + (float)pCmd->x1, offset.y + (float)pCmd->y1}, Magenta);
                 OPB->end();
             }
             else if (dynamic_cast<sTextureCmdIMAGE*>(cmd))

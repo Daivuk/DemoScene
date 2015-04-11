@@ -27,12 +27,18 @@ int res_getColorId(const res_Color& in_color);
 
 struct sTextureCmd
 {
+    struct sTexture* texture = nullptr;
+    int bevel = 0;
+    int raise = 0;
+    int specular = 0;
+    int shininess = 0;
+    int selfIllum = 0;
     virtual ~sTextureCmd() {}
     virtual sTextureCmd* copy() = 0;
-    struct sTexture* texture = nullptr;
     virtual eRES_CMD getType() = 0;
     virtual void serialize() = 0;
     virtual void deserialize() = 0;
+    virtual void prepare();
 };
 
 struct sTextureCmdFILL : public sTextureCmd
@@ -40,50 +46,6 @@ struct sTextureCmdFILL : public sTextureCmd
     res_Color color = {255, 255, 255, 255};
     sTextureCmd* copy() override;
     eRES_CMD getType() override { return RES_FILL; }
-    void serialize() override;
-    void deserialize() override;
-};
-
-struct sTextureCmdRECT : public sTextureCmd
-{
-    res_Color color = {255, 255, 255, 255};
-    int x1 = 0, y1 = 0, x2 = 32, y2 = 32;
-    sTextureCmd* copy() override;
-    eRES_CMD getType() override { return RES_RECT; }
-    void serialize() override;
-    void deserialize() override;
-};
-
-struct sTextureCmdBEVEL : public sTextureCmd
-{
-    res_Color color = {0, 0, 0, 255};
-    int x1 = 0, y1 = 0, x2 = 32, y2 = 32;
-    int bevel = 5;
-    sTextureCmd* copy() override;
-    eRES_CMD getType() override { return RES_BEVEL; }
-    void serialize() override;
-    void deserialize() override;
-};
-
-struct sTextureCmdCIRCLE : public sTextureCmd
-{
-    res_Color color = {255, 255, 255, 255};
-    int x = 0, y = 0;
-    int radius = 20;
-    sTextureCmd* copy() override;
-    eRES_CMD getType() override { return RES_CIRCLE; }
-    void serialize() override;
-    void deserialize() override;
-};
-
-struct sTextureCmdBEVEL_CIRCLE : public sTextureCmd
-{
-    res_Color color = {255, 255, 255, 255};
-    int x = 0, y = 0;
-    int radius = 20;
-    int bevel = 3;
-    sTextureCmd* copy() override;
-    eRES_CMD getType() override { return RES_BEVEL_CIRCLE; }
     void serialize() override;
     void deserialize() override;
 };
@@ -99,21 +61,24 @@ struct sTextureCmdLINE : public sTextureCmd
     void deserialize() override;
 };
 
-struct sTextureCmdGRADIENT : public sTextureCmd
+struct sTextureCmdRECT : public sTextureCmd
 {
-    res_Color color1 = {255, 255, 255, 255}, color2 = {0, 0, 0, 255};
+    res_Color color = {255, 255, 255, 255};
     int x1 = 0, y1 = 0, x2 = 32, y2 = 32;
-    bool bVertical = false;
     sTextureCmd* copy() override;
-    eRES_CMD getType() override { return RES_GRADIENT; }
+    eRES_CMD getType() override { return RES_RECT; }
     void serialize() override;
     void deserialize() override;
+    void prepare() override;
 };
 
-struct sTextureCmdNORMAL_MAP : public sTextureCmd
+struct sTextureCmdCIRCLE : public sTextureCmd
 {
+    res_Color color = {255, 255, 255, 255};
+    int x = 0, y = 0;
+    int radius = 20;
     sTextureCmd* copy() override;
-    eRES_CMD getType() override { return RES_NORMAL_MAP; }
+    eRES_CMD getType() override { return RES_CIRCLE; }
     void serialize() override;
     void deserialize() override;
 };
@@ -140,7 +105,7 @@ struct sTexture
 {
     sTexture();
     virtual ~sTexture();
-    void bake(int channel);
+    void bake();
     void serialize();
     void deserialize();
     sTexture* copy() const;
@@ -148,7 +113,7 @@ struct sTexture
     Texture* texture[3];
 
     int w = 256, h = 256;
-    vector<sTextureCmd*> cmds[3];
+    vector<sTextureCmd*> cmds;
     uint32_t* data[3];
 };
 
