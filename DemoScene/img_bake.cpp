@@ -51,7 +51,7 @@ enum eTextureChannel
 
 void applyState(int pixelIndex, int edgeDist, uint32_t srcColor)
 {
-    auto percent = edgeDist - img.bakeState.bevel;
+    auto percent = clamp(img.bakeState.bevel - edgeDist, 0, img.bakeState.bevel);
     if (img.bakeState.bevel)
     {
         percent = percent * 255 / img.bakeState.bevel;
@@ -66,10 +66,6 @@ void applyState(int pixelIndex, int edgeDist, uint32_t srcColor)
     }
     percent = clamp(percent, 0, 255);
 
-    // Diffuse
-    uint32_t col = (srcColor & 0x00ffffff) | ((percent << 24) & 0xff000000);
-    img.pData[CHANNEL_DIFFUSE][pixelIndex] = blendColors(col, img.pData[CHANNEL_DIFFUSE][pixelIndex]);
-
     // Normal
     int32_t normal = (int32_t)img.pData[CHANNEL_NORMAL][pixelIndex];
     normal += img.bakeState.raise * percent / 255;
@@ -79,12 +75,17 @@ void applyState(int pixelIndex, int edgeDist, uint32_t srcColor)
     auto specular = clamp(img.bakeState.specular * 255 / 100, 0, 255);
     auto shininess = clamp(img.bakeState.shininess * 255 / 100, 0, 255);
     auto selfIllum = clamp(img.bakeState.selfIllum * 255 / 100, 0, 255);
-    col = 
+    uint32_t col =
         (specular & 0x000000ff) |
         ((shininess << 8) & 0x0000ff00) |
         ((selfIllum << 16) & 0x00ff0000) |
         ((percent << 24) & 0xff000000);
     img.pData[CHANNEL_MATERIAL][pixelIndex] = blendColors(col, img.pData[CHANNEL_MATERIAL][pixelIndex]);
+
+    // Diffuse
+    percent = ((srcColor >> 24) & 0xff) * percent / 255;
+    col = (srcColor & 0x00ffffff) | ((percent << 24) & 0xff000000);
+    img.pData[CHANNEL_DIFFUSE][pixelIndex] = blendColors(col, img.pData[CHANNEL_DIFFUSE][pixelIndex]);
 }
 
 void fill(uint32_t color)
@@ -197,7 +198,11 @@ void fillRect(uint32_t color, int fromX, int fromY, int toX, int toY)
     {
         for (int x = fromX; x < toX; ++x)
         {
-            applyState(y * img.w + x, 0, color);
+            int dist = x - fromX;
+            if (y - fromY < dist) dist = y - fromY;
+            if (toX - x - 1 < dist) dist = toX - x - 1;
+            if (toY - y - 1 < dist) dist = toY - y - 1;
+            applyState(y * img.w + x, dist, color);
         }
     }
 }

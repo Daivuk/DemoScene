@@ -33,6 +33,7 @@ struct sTextureCmd
     int specular = 0;
     int shininess = 0;
     int selfIllum = 0;
+    bool bInvBevel = false;
     virtual ~sTextureCmd() {}
     virtual sTextureCmd* copy() = 0;
     virtual eRES_CMD getType() = 0;

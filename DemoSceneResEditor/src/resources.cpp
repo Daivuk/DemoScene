@@ -188,6 +188,13 @@ sTextureCmd* sTextureCmdFILL::copy()
 {
     auto cmd = new sTextureCmdFILL();
     cmd->color = color;
+
+    cmd->bevel = bevel;
+    cmd->raise = raise;
+    cmd->specular = specular;
+    cmd->shininess = shininess;
+    cmd->selfIllum = selfIllum;
+    cmd->bInvBevel = bInvBevel;
     return cmd;
 }
 
@@ -199,6 +206,13 @@ sTextureCmd* sTextureCmdRECT::copy()
     cmd->y1 = y1;
     cmd->x2 = x2;
     cmd->y2 = y2;
+
+    cmd->bevel = bevel;
+    cmd->raise = raise;
+    cmd->specular = specular;
+    cmd->shininess = shininess;
+    cmd->selfIllum = selfIllum;
+    cmd->bInvBevel = bInvBevel;
     return cmd;
 }
 
@@ -209,6 +223,13 @@ sTextureCmd* sTextureCmdCIRCLE::copy()
     cmd->x = x;
     cmd->y = y;
     cmd->radius = radius;
+
+    cmd->bevel = bevel;
+    cmd->raise = raise;
+    cmd->specular = specular;
+    cmd->shininess = shininess;
+    cmd->selfIllum = selfIllum;
+    cmd->bInvBevel = bInvBevel;
     return cmd;
 }
 
@@ -221,6 +242,13 @@ sTextureCmd* sTextureCmdLINE::copy()
     cmd->x2 = x2;
     cmd->y2 = y2;
     cmd->size = size;
+
+    cmd->bevel = bevel;
+    cmd->raise = raise;
+    cmd->specular = specular;
+    cmd->shininess = shininess;
+    cmd->selfIllum = selfIllum;
+    cmd->bInvBevel = bInvBevel;
     return cmd;
 }
 
@@ -233,6 +261,13 @@ sTextureCmd* sTextureCmdIMAGE::copy()
     cmd->x2 = x2;
     cmd->y2 = y2;
     cmd->imgId = imgId;
+
+    cmd->bevel = bevel;
+    cmd->raise = raise;
+    cmd->specular = specular;
+    cmd->shininess = shininess;
+    cmd->selfIllum = selfIllum;
+    cmd->bInvBevel = bInvBevel;
     return cmd;
 }
 

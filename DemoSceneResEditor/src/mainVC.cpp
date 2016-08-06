@@ -405,6 +405,11 @@ void MainVC::hookCmd(sTextureCmd* cmd, UIControl* pCtrl)
         auto pCmd = (sTextureCmdIMAGE*)cmd;
         hookColorPicker(pCtrl, "color", &pCmd->color);
     }
+    hookInteger(uiInspectorTexture, "txtBevel", &cmd->bevel, 0, 64);
+    hookInteger(uiInspectorTexture, "txtRaise", &cmd->raise, -255, 255);
+    hookInteger(uiInspectorTexture, "txtSpecular", &cmd->specular, 0, 100);
+    hookInteger(uiInspectorTexture, "txtShininess", &cmd->shininess, 0, 100);
+    hookInteger(uiInspectorTexture, "txtSelfIllum", &cmd->selfIllum, 0, 100);
 }
 
 void MainVC::insertCmd(sTextureCmd* pCmd, UIControl* pCtrl)
@@ -623,7 +628,7 @@ void MainVC::update()
         }
 
         // Move light
-        if (OInput->isStateDown(DIK_SPACE) && OInput->isStateDown(DIK_MOUSEB2))
+        if (OInput->isStateDown(DIK_MOUSEB2))
         {
             // Pass in constant buffer
             auto worldRect = onut::UI2Onut(uiPnlTexture->getWorldRect(uiContext));
